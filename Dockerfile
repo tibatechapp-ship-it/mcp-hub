@@ -7,11 +7,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN useradd --create-home --uid 1000 mcphub
+
+# Pull the Debian security updates published after the base image snapshot.
+# The Trivy gate in CI scans this layer; an unpatched base is a red build.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[api]"
+# Keep pip itself current — the runtime image carries it, and Trivy audits it.
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir ".[api]"
 
 RUN mkdir -p /data && chown mcphub:mcphub /data
 VOLUME ["/data"]
