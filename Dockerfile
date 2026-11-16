@@ -18,8 +18,9 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
-# Keep pip itself current — the runtime image carries it, and Trivy audits it.
-RUN pip install --no-cache-dir --upgrade pip \
+# Keep the bundled packaging tools current — they ship in the runtime image
+# and Trivy audits them like any other package.
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir ".[api]"
 
 RUN mkdir -p /data && chown mcphub:mcphub /data
