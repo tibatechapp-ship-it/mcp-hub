@@ -2,7 +2,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
@@ -58,6 +58,38 @@ mcp-hub import-categories categories.json
 mcp-hub add-alert webhook https://example.com/hook --query pg
 ```
 
+## Provenance (two-layer design)
+
+`mcp-hub` tracks provenance in **two complementary tables**:
+
+| Table | Purpose | Query pattern |
+|---|---|---|
+| `provenance` | audit trail — one row per event, full `payload_json` | "What changed when?" |
+| `field_provenance` | queryable index — one row per `(field, source)` | "Who wrote this field?" |
+
+Both tables are written **atomically inside the same transaction** as the catalog
+write, so audit and index can never drift apart. `field_provenance` is backfilled
+automatically from `provenance` when an older database is opened (one-time,
+guarded by `PRAGMA user_version`).
+
+```bash
+# Fast field-level view (indexed, O(log n))
+mcp-hub provenance 42
+
+# Filter to one field
+mcp-hub provenance 42 --field description
+
+# Fast conflict detection (fields whose sources disagree)
+mcp-hub provenance 42 --conflicts-only
+
+# Audit trail (event history)
+mcp-hub provenance 42 --events --limit 20
+```
+
+REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&field=...`
+(`/api/server/{id}/provenance` is kept as an alias). `provenance.history()` and
+`provenance.conflicts()` stay public and now read the indexed layer.
+
 ## API (optional)
 
 | Endpoint | Description |
@@ -66,6 +98,7 @@ mcp-hub add-alert webhook https://example.com/hook --query pg
 | `GET /api/stats` | catalog stats |
 | `GET /api/search?q=&fts=` | search servers |
 | `GET /api/servers/{id}` | server details |
+| `GET /api/servers/{id}/provenance` | provenance: `?mode=fields\|conflicts\|events&field=` |
 | `GET/POST/DELETE /api/searches*` | saved searches |
 | `POST /api/searches/run-all` | run all saved searches |
 | `GET /api/scheduler/runs` | recent batch runs |
@@ -77,6 +110,9 @@ When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/
 ## Performance notes
 
 v1.1 focuses on local-first scale:
+- **Indexed provenance:** field-level and conflict queries hit `field_provenance`
+  (indexed on `server_id`, `(server_id, field_name)`, `source`, `set_at`) instead of
+  re-parsing every `payload_json` row.
 - **Batch ingestion:** `bulk_add()` commits in one transaction instead of per-row.
 - **Narrowed duplicate detection:** candidate lookup uses indexed identity columns (registry/repo/endpoint/publisher+name prefix) instead of scanning the full table.
 - **Indexes:** composite indexes for common lookups and active listing.

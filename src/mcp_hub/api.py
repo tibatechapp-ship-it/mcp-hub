@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from . import __version__, alerts, saved_searches, scheduler, taxonomy
+from . import provenance as _provenance
 from .auth import add_auth_middleware, get_api_key_from_env
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
@@ -44,6 +47,34 @@ def create_app(
         if not row:
             raise HTTPException(status_code=404, detail="not found")
         return row
+
+    @app.get("/api/servers/{server_id}/provenance")
+    @app.get("/api/server/{server_id}/provenance")
+    def server_provenance(
+        server_id: int,
+        field: str | None = Query(None, description="Filter to one field"),
+        mode: Literal["fields", "conflicts", "events"] = Query("fields"),
+        limit: int = Query(50, ge=1, le=500),
+    ):
+        if not catalog.get_server(server_id):
+            raise HTTPException(status_code=404, detail=f"server {server_id} not found")
+        if mode == "conflicts":
+            return {
+                "server_id": server_id,
+                "mode": "conflicts",
+                "conflicts": _provenance.field_conflicts(catalog, server_id),
+            }
+        if mode == "events":
+            return {
+                "server_id": server_id,
+                "mode": "events",
+                "events": _provenance.event_history(catalog, server_id, limit=limit),
+            }
+        return {
+            "server_id": server_id,
+            "mode": "fields",
+            "history": _provenance.field_history(catalog, server_id, field),
+        }
 
     @app.get("/api/searches")
     def list_searches():

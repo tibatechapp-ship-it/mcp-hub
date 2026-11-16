@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.1] - 2026-11-16
+
+### Added
+- **Dual-layer provenance**: new `field_provenance` table indexed by
+  `(server_id, field_name, source)` enables O(log n) field queries while the
+  existing `provenance` table stays the audit trail.
+- New APIs: `provenance.field_history()`, `provenance.field_conflicts()`,
+  `provenance.event_history()`.
+- CLI: `provenance <id>` with `--field <name>`, `--conflicts-only`, `--events`, `--limit`.
+- REST: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&field=...`
+  (`/api/server/{id}/provenance` kept as alias).
+- Automatic, one-time backfill from existing `provenance` rows when opening an
+  older database (guarded by `PRAGMA user_version`).
+- Classification (`classify`) and category overrides now record `categories`
+  changes in the provenance layer.
+
+### Changed
+- `provenance.history()` and `provenance.conflicts()` now read `field_provenance`
+  (fast, indexed) — same output shape, backward compatible.
+- Provenance writes from `add_server()` / `bulk_add()` / `save_enrichment()` run
+  in the same transaction as the catalog write instead of a second connection
+  (previously they could be dropped on `SQLITE_BUSY`).
+
+### Fixed
+- Audit rows are no longer silently lost during bulk ingestion.
+
 ## [1.1.0] - 2026-11-16
 
 ### Added

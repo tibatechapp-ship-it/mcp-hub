@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from . import provenance as _prov
 from .normalize import normalize_categories
 
 DEFAULT_RULES: dict[str, list[str]] = {
@@ -60,6 +61,7 @@ def classify_catalog(db, overwrite: bool = False) -> dict[str, int]:
                     "UPDATE servers SET categories=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                     (cats, sid),
                 )
+                _prov.record(con, sid, "categories", "classifier", cats)
                 if db.fts_enabled:
                     try:
                         con.execute("DELETE FROM servers_fts WHERE rowid=?", (sid,))
