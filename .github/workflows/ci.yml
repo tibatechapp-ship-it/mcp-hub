@@ -45,4 +45,4 @@ jobs:
       - name: Show MCP SDK version
         run: python -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
       - name: Run MCP server tests
-        run: pytest -q tests/test_mcp_server.py -v --no-cov
+        run: pytest -q tests/test_mcp_server.py -v --cov=mcp_hub.mcp_server --cov-report=term-missing
