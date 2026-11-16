@@ -124,12 +124,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      # Attestations off: an attached SBOM makes Trivy scan that document
+      # instead of the image filesystem, which reports stale packages.
       - name: Build image for scanning
-        run: docker build -t mcp-hub:scan .
-
-      - name: Debug — locate setuptools copies
-        run: |
-          docker run --rm --entrypoint sh mcp-hub:scan -c 'python -c "import setuptools,sys;print(setuptools.__version__, setuptools.__file__)"; find / -xdev -name "setuptools-*" 2>/dev/null | head -20'
+        run: docker build --provenance=false --sbom=false -t mcp-hub:scan .
 
       - name: Trivy (CRITICAL + HIGH, blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
