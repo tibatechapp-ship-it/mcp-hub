@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] - 2026-11-16
+
+### Added
+- **MCP server** (`mcp-server` extra): 8 read-only tools exposing the catalog to
+  Cursor and other MCP hosts via the official `mcp` SDK (works with `mcp` 1.x
+  and 2.x).
+  - `search_servers`, `get_server`, `list_categories`, `servers_by_category`
+  - `provenance_conflicts`, `provenance_events`
+  - `doctor_report`, `suggest_category`
+- Resource `mcp-hub://stats` for live catalog statistics.
+- Entry point `mcp-hub-server`.
+- `examples/cursor-mcp.json` template.
+- `tests/test_mcp_server.py` (18 tests, including a read-only contract test).
+- CI job `mcp-server` runs the suite against `mcp` 1.x **and** 2.x.
+
+### Changed
+- `pyproject.toml`: new `[project.optional-dependencies].mcp-server`
+  (`mcp>=1.27,<3`), `mcp-hub-server` script, pytest markers.
+
 ## [1.1.1] - 2026-11-16
 
 ### Added
