@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from . import __version__, alerts, saved_searches, scheduler, taxonomy
@@ -10,14 +12,46 @@ from . import provenance as _provenance
 from .auth import add_auth_middleware, get_api_key_from_env
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
+from .redact import redact
+
+DEFAULT_CORS_ORIGINS = (
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+)
+
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("MCP_HUB_CORS_ORIGINS", "").strip()
+    if not raw:
+        return list(DEFAULT_CORS_ORIGINS)
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 def create_app(
     db_path: str | None = None, catalog: Catalog | None = None, api_key: str | None = None
 ):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
-    app = FastAPI(title="mcp-hub", version=__version__)
+    app = FastAPI(title="mcp-hub", version=__version__, debug=False)
     add_auth_middleware(app, api_key or get_api_key_from_env())
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins(),
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["X-API-Key", "Authorization", "Content-Type"],
+        allow_credentials=False,
+        max_age=600,
+    )
+
+    @app.exception_handler(Exception)
+    async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+        """Return a stable body; never leak a traceback or a token."""
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "internal error", "type": redact(type(exc).__name__)},
+        )
 
     @app.get("/", response_class=HTMLResponse)
     def index():
@@ -30,7 +64,7 @@ def create_app(
                 con.execute("SELECT 1").fetchone()
             return {"status": "ok", "version": __version__, "db": "ok"}
         except Exception as e:  # noqa: BLE001
-            return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+            return JSONResponse(status_code=503, content={"status": "error", "detail": redact(e)})
 
     @app.get("/api/stats")
     def stats():
@@ -129,7 +163,7 @@ def create_app(
                 (payload or {}).get("notes", ""),
             )
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise HTTPException(status_code=400, detail=redact(e)) from e
         return {"ok": True}
 
     @app.post("/api/categories/classify")
@@ -147,7 +181,7 @@ def create_app(
         try:
             return catalog.import_custom_categories_json(data, replace=replace)
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise HTTPException(status_code=400, detail=redact(e)) from e
 
     @app.get("/api/alerts")
     def list_alerts_api():

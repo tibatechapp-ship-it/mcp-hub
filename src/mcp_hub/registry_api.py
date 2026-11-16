@@ -2,26 +2,39 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Any
 
 from .models import Server
+from .redact import redact
+from .safe_fetch import DEFAULT_MAX_BYTES, UnsafeURLError, safe_request
 
 REGISTRY_BASE = "https://registry.modelcontextprotocol.io/v0/servers"
+REGISTRY_MAX_BYTES = 8 * DEFAULT_MAX_BYTES  # a 100-server page is comfortably smaller
 
 
 def _http_get_json(url: str, retries: int = 3, timeout: int = 20) -> dict[str, Any]:
-    last_err = None
+    last_err: object = None
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "mcp-hub/1.1"})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except Exception as e:  # noqa: BLE001
-            last_err = e
+            _status, body = safe_request(
+                url,
+                headers={"User-Agent": "mcp-hub/1.3", "Accept": "application/json"},
+                timeout=timeout,
+                max_bytes=REGISTRY_MAX_BYTES,
+            )
+            return json.loads(body.decode("utf-8"))
+        except UnsafeURLError as exc:
+            # A policy refusal will not fix itself on retry.
+            raise RuntimeError(f"registry fetch refused: {redact(exc)}") from exc
+        except urllib.error.HTTPError as exc:
+            last_err = f"HTTP {exc.code}"
             time.sleep(0.5 * (attempt + 1))
-    raise RuntimeError(f"registry fetch failed: {last_err}")
+        except Exception as exc:  # noqa: BLE001 - network/JSON errors are retried
+            last_err = redact(exc)
+            time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError(f"registry fetch failed: {redact(last_err)}")
 
 
 def _to_server(item: dict[str, Any]) -> Server:

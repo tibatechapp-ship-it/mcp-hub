@@ -45,7 +45,8 @@ def test_full_lifecycle(tmp_path):
         ],
         "metadata": {},
     }
-    with patch("mcp_hub.registry_api.urllib.request.urlopen", return_value=_resp(page)):
+    body = json.dumps(page).encode()
+    with patch("mcp_hub.registry_api.safe_request", return_value=(200, body)):
         rows = registry_api.fetch_servers(limit=10)
     res = db.bulk_add(rows)
     assert res["new"] == 2
