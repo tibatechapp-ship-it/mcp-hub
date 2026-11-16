@@ -129,7 +129,7 @@ jobs:
 
       - name: Debug — locate setuptools copies
         run: |
-          docker run --rm mcp-hub:scan sh -c 'find / -xdev \( -name "setuptools*" -o -name "*setuptools*dist-info*" \) 2>/dev/null | head -20'
+          docker run --rm --entrypoint sh mcp-hub:scan -c 'python -c "import setuptools,sys;print(setuptools.__version__, setuptools.__file__)"; find / -xdev -name "setuptools-*" 2>/dev/null | head -20'
 
       - name: Trivy (CRITICAL + HIGH, blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
