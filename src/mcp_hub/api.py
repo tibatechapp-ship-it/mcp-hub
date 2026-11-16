@@ -12,6 +12,8 @@ from . import provenance as _provenance
 from .auth import add_auth_middleware, get_api_key_from_env
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
+from .payload_limit import install_payload_limit
+from .ratelimit import install_rate_limit
 from .redact import redact
 
 DEFAULT_CORS_ORIGINS = (
@@ -44,6 +46,10 @@ def create_app(
         allow_credentials=False,
         max_age=600,
     )
+
+    # Runtime hardening: per-IP rate limit (P1.1) and body-size cap (P2.2).
+    install_rate_limit(app)  # 120 req/min per IP, MCP_HUB_RATE_LIMIT_PER_MIN
+    install_payload_limit(app)  # 1 MiB body cap, MCP_HUB_MAX_BODY_BYTES
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
