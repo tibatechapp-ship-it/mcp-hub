@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 from typing import Any
+
+from .redact import redact
 
 
 def _repo_from_url(url: str) -> str | None:
@@ -25,13 +28,14 @@ def _fetch_repo(repo: str, token: str | None = None) -> dict[str, Any]:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def enrich_catalog(db, limit: int = 200, token: str | None = None) -> dict[str, int]:
+def enrich_catalog(db, limit: int = 200, token: str | None = None) -> dict[str, Any]:
     token = token or os.environ.get("GITHUB_TOKEN")
     targets = db.servers_needing_enrichment(limit=limit)
     attempted = 0
     succeeded = 0
     failed = 0
     skipped = 0
+    last_error = ""
     for srv in targets:
         attempted += 1
         repo = _repo_from_url(srv.get("repository_url", ""))
@@ -51,6 +55,18 @@ def enrich_catalog(db, limit: int = 200, token: str | None = None) -> dict[str, 
                 },
             )
             succeeded += 1
-        except Exception:
+        except urllib.error.HTTPError as exc:
             failed += 1
-    return {"attempted": attempted, "succeeded": succeeded, "failed": failed, "skipped": skipped}
+            last_error = redact(f"HTTP {exc.code} for {repo}")
+        except Exception as exc:  # noqa: BLE001 - surfaced redacted, never raw
+            failed += 1
+            last_error = redact(exc)
+    result: dict[str, Any] = {
+        "attempted": attempted,
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": skipped,
+    }
+    if last_error:
+        result["last_error"] = last_error
+    return result
