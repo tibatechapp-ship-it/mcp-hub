@@ -10,8 +10,17 @@ RUN useradd --create-home --uid 1000 mcphub
 
 # Pull the Debian security updates published after the base image snapshot.
 # The Trivy gate in CI scans this layer; an unpatched base is a red build.
+# The distro also ships an outdated python3-setuptools in dist-packages (not on
+# the app's sys.path — pip installs to /usr/local). Drop the stale copy so the
+# image carries exactly one, current setuptools.
 RUN apt-get update \
     && apt-get upgrade -y \
+    && apt-get purge -y python3-setuptools \
+    && rm -rf /usr/lib/python3/dist-packages/setuptools* \
+              /usr/lib/python3/dist-packages/pkg_resources* \
+              /usr/lib/python3/dist-packages/_distutils_hack \
+              /usr/lib/python3/dist-packages/distutils-precedence.pth \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
