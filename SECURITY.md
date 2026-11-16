@@ -25,6 +25,50 @@ mcp-hub is a **local-first** tool. Defaults assume trusted local use:
 5. Treat GitHub tokens as secrets; prefer read-only scopes.
 6. Do not point enrichment/health checks at endpoints you do not own or trust.
 
+## Rate limiting and payload limits (1.3.0+)
+
+Every `/api/*` endpoint except `/api/health` and `/api/doctor` is
+rate-limited to **120 requests per minute per client IP** by default
+(override with `MCP_HUB_RATE_LIMIT_PER_MIN`, or `0` to disable). A refused
+request gets `429` with `Retry-After: 60`.
+
+`X-Forwarded-For` is trusted **only** when the direct peer is loopback — i.e.
+when a reverse proxy runs on the same host. Any other client is keyed on its
+socket address, so a remote caller cannot rotate its bucket by spoofing the
+header.
+
+`POST`/`PUT`/`PATCH` bodies larger than **1 MiB** are rejected with HTTP 413
+(override with `MCP_HUB_MAX_BODY_BYTES`). A declared `Content-Length` is
+checked before the body is read; a chunked upload without the header is
+counted as it streams and aborted at the cap.
+
+## Continuous security scanning (1.3.0+)
+
+Every push and pull request runs:
+
+| Tool | Scope | Blocks on |
+|---|---|---|
+| bandit | Python source (SAST) | HIGH severity |
+| semgrep | `p/python` + `p/security-audit` | ERROR rules |
+| pip-audit | Python dependencies | any known CVE |
+| pip-licenses | dependency licences | GPL / AGPL |
+| Trivy | Docker image (CRITICAL + HIGH, fixed CVEs only) | any finding |
+
+`bandit.json` and `LICENSES.md` are uploaded as the `security-reports`
+artifact on every run; the Trivy SARIF report lands in the repository's
+Security tab (code scanning).
+
+Dependabot opens weekly pull requests for pip dependencies, GitHub Actions
+pins and the Docker base image. GitHub Secret Scanning (with push protection)
+and CodeQL are enabled on the repository.
+
+## Dependency policy
+
+Runtime and development dependencies carry explicit upper bounds in
+`pyproject.toml` (next major), and every GitHub Action is pinned to a full
+commit SHA with a `# vX.Y.Z` comment. Dependabot rewrites both — a moving tag
+is never trusted at build time.
+
 ## SSRF protection (1.3.0+)
 
 Every outbound request made on behalf of a user-supplied URL goes through

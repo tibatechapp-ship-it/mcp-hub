@@ -1,12 +1,21 @@
 # mcp-hub
 
+> ⚠️ **Security notice** — read before exposing this service
+>
+> `mcp-hub` binds to `127.0.0.1` by default. When you set `MCP_HUB_API_KEY`
+> and bind to a network interface (`--host 0.0.0.0`), **always run behind a
+> TLS-terminating reverse proxy** (Caddy, nginx, Cloudflare Tunnel).
+> Plain HTTP leaks the API key to every device on the network.
+>
+> Full security model: [SECURITY.md](SECURITY.md).
+
 [![PyPI](https://img.shields.io/pypi/v/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![CI](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml)
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.3.0
+- **Version:** 1.3.1
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
