@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.3.0] - 2026-11-16
+
+### Security (P0)
+- **SSRF-safe HTTP client** (`mcp_hub.safe_fetch`): HTTPS-only, no credentials in
+  URLs, DNS resolution pinned to public addresses (blocks loopback, RFC 1918,
+  CGNAT, link-local / cloud metadata, IPv6 ULA, IPv4-mapped IPv6), redirect
+  re-validation, 3-hop and body-size caps. Standard library only — no new
+  runtime dependency.
+- **Secret redaction** (`mcp_hub.redact`): provider tokens, bearer/auth headers,
+  PEM blocks, connection-string passwords and URL query secrets are scrubbed
+  from error details before they reach a user, a log or an alert payload.
+- **Alerts**: webhook delivery now goes through `safe_request`; failures are
+  reported per channel with redacted details (`errors` list on `dispatch()`).
+- **Registry sync + GitHub enrichment**: policy-checked fetches, untrusted error
+  text redacted; a policy refusal is not retried.
+- **REST API**: `debug=False`, unhandled exceptions return a generic body,
+  `detail=str(exc)` sites redacted, CORS restricted to localhost origins by
+  default (`MCP_HUB_CORS_ORIGINS` to override).
+- **Endpoint health probes** (`mcp_hub.health.check_endpoint`): new SSRF-safe,
+  never-raising HEAD probe (storage/CLI wiring lands later).
+- **Packaging hygiene**: `.dockerignore` now keeps databases, `.env` files and
+  private keys out of image layers.
+
+### Added
+- `tests/test_ssrf.py` and `tests/test_redact.py` (82 tests, no network needed).
+
+### Changed
+- `alerts.dispatch()` result may include an `errors` list; counts are unchanged.
+- `registry_api._http_get_json()` raises `RuntimeError` with a redacted message
+  and stops retrying when the URL is refused by policy.
+
 ## [1.2.0] - 2026-11-16
 
 ### Added
