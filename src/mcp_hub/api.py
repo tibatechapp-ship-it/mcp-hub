@@ -9,7 +9,9 @@ from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
 
 
-def create_app(db_path: str | None = None, catalog: Catalog | None = None, api_key: str | None = None):
+def create_app(
+    db_path: str | None = None, catalog: Catalog | None = None, api_key: str | None = None
+):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
     app = FastAPI(title="mcp-hub", version=__version__)
     add_auth_middleware(app, api_key or get_api_key_from_env())
@@ -90,7 +92,9 @@ def create_app(db_path: str | None = None, catalog: Catalog | None = None, api_k
         try:
             catalog.add_custom_category(
                 (payload or {}).get("name", ""),
-                ",".join(payload.get("terms", [])) if isinstance(payload.get("terms"), list) else payload.get("terms", ""),
+                ",".join(payload.get("terms", []))
+                if isinstance(payload.get("terms"), list)
+                else payload.get("terms", ""),
                 (payload or {}).get("notes", ""),
             )
         except Exception as e:  # noqa: BLE001

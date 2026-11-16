@@ -1,4 +1,5 @@
 """End-to-end: sync -> enrich -> classify -> search -> export."""
+
 from __future__ import annotations
 
 import json

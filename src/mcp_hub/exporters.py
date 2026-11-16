@@ -4,7 +4,6 @@ import csv
 import json
 from pathlib import Path
 
-
 COLUMNS = [
     "id",
     "name",
@@ -54,8 +53,8 @@ def export_markdown(db, path: str | Path) -> Path:
         if len(desc) > 120:
             desc = desc[:117] + "..."
         lines.append(
-            f"| {r.get('id','')} | {r.get('name','')} | {r.get('publisher','')} | "
-            f"{r.get('categories','')} | {desc} |"
+            f"| {r.get('id', '')} | {r.get('name', '')} | {r.get('publisher', '')} | "
+            f"{r.get('categories', '')} | {desc} |"
         )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path

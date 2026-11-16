@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from . import provenance as _prov
 from .dedupe import compare
@@ -231,8 +232,15 @@ class Catalog:
         try:
             con.execute("DELETE FROM servers_fts WHERE rowid=?", (int(rowid),))
             con.execute(
-                "INSERT INTO servers_fts(rowid,name,publisher,description,categories) VALUES (?,?,?,?,?)",
-                (int(rowid), name or "", publisher or "", description or "", categories or ""),
+                "INSERT INTO servers_fts(rowid,name,publisher,description,categories) "
+                "VALUES (?,?,?,?,?)",
+                (
+                    int(rowid),
+                    name or "",
+                    publisher or "",
+                    description or "",
+                    categories or "",
+                ),
             )
         except Exception:
             pass
@@ -384,11 +392,13 @@ class Catalog:
     def save_enrichment(self, server_id: int, data: dict[str, Any]) -> None:
         with self.connect() as con:
             con.execute(
-                "INSERT INTO enrichments (server_id,stars,forks,license,pushed_at,topics,enriched_at) "
+                "INSERT INTO enrichments "
+                "(server_id,stars,forks,license,pushed_at,topics,enriched_at) "
                 "VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP) "
                 "ON CONFLICT(server_id) DO UPDATE SET "
                 "stars=excluded.stars,forks=excluded.forks,license=excluded.license,"
-                "pushed_at=excluded.pushed_at,topics=excluded.topics,enriched_at=CURRENT_TIMESTAMP",
+                "pushed_at=excluded.pushed_at,topics=excluded.topics,"
+                "enriched_at=CURRENT_TIMESTAMP",
                 (
                     int(server_id),
                     int(data.get("stars", 0) or 0),
@@ -461,7 +471,9 @@ class Catalog:
             "overrides": self.category_overrides(),
         }
 
-    def import_custom_categories_json(self, data: dict[str, Any], replace: bool = False) -> dict[str, Any]:
+    def import_custom_categories_json(
+        self, data: dict[str, Any], replace: bool = False
+    ) -> dict[str, Any]:
         if not isinstance(data, dict):
             raise ValueError("payload must be a JSON object")
         if replace:
@@ -517,7 +529,8 @@ class Catalog:
     def update_saved_search_run(self, name: str, ids: list[int]) -> None:
         with self.connect() as con:
             con.execute(
-                "UPDATE saved_searches SET last_run_at=CURRENT_TIMESTAMP, last_new_ids=? WHERE name=?",
+                "UPDATE saved_searches "
+                "SET last_run_at=CURRENT_TIMESTAMP, last_new_ids=? WHERE name=?",
                 (json.dumps(ids), name.strip()),
             )
 
@@ -562,15 +575,9 @@ class Catalog:
     def stats(self) -> dict[str, Any]:
         with self.connect() as con:
             records = con.execute("SELECT COUNT(*) AS c FROM servers").fetchone()["c"]
-            sources = con.execute(
-                "SELECT COUNT(DISTINCT source) AS c FROM servers"
-            ).fetchone()["c"]
-            dupes = con.execute(
-                "SELECT COUNT(*) AS c FROM duplicate_candidates"
-            ).fetchone()["c"]
-            enriched = con.execute(
-                "SELECT COUNT(*) AS c FROM enrichments"
-            ).fetchone()["c"]
+            sources = con.execute("SELECT COUNT(DISTINCT source) AS c FROM servers").fetchone()["c"]
+            dupes = con.execute("SELECT COUNT(*) AS c FROM duplicate_candidates").fetchone()["c"]
+            enriched = con.execute("SELECT COUNT(*) AS c FROM enrichments").fetchone()["c"]
             return {
                 "records": records,
                 "sources": sources,

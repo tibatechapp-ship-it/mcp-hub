@@ -1,5 +1,7 @@
 """Embedded dashboard HTML for mcp-hub."""
 
+# ruff: noqa: E501
+
 HTML = r"""<!doctype html>
 <html lang="en">
 <head>

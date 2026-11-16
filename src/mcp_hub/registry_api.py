@@ -49,7 +49,9 @@ def _to_server(item: dict[str, Any]) -> Server:
         registry_id=s.get("name") or meta.get("id") or "",
         repository_url=repo,
         endpoint_url=endpoint,
-        package_name=(s.get("packages") or [{}])[0].get("identifier", "") if s.get("packages") else "",
+        package_name=(s.get("packages") or [{}])[0].get("identifier", "")
+        if s.get("packages")
+        else "",
         raw_name=name,
     )
 

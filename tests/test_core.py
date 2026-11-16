@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
+from mcp_hub import doctor, exporters, saved_searches, taxonomy
 from mcp_hub.database import Catalog
 from mcp_hub.models import Server
-from mcp_hub import taxonomy, saved_searches, exporters, doctor
 
 
 def test_add_search_and_stats(tmp_path):
@@ -21,9 +20,17 @@ def test_add_search_and_stats(tmp_path):
     )
     assert sid is not None
     # duplicate skip
-    assert db.add_server(
-        Server(name="pg-tool", publisher="acme", description="PostgreSQL query runner", source="test")
-    ) is None
+    assert (
+        db.add_server(
+            Server(
+                name="pg-tool",
+                publisher="acme",
+                description="PostgreSQL query runner",
+                source="test",
+            )
+        )
+        is None
+    )
     stats = db.stats()
     assert stats["records"] == 1
     assert db.search("postgres")
@@ -32,7 +39,9 @@ def test_add_search_and_stats(tmp_path):
 
 def test_bulk_add(tmp_path):
     db = Catalog(tmp_path / "db.sqlite3")
-    servers = [Server(name=f"S{i}", publisher="p", description=f"d{i}", source="t") for i in range(50)]
+    servers = [
+        Server(name=f"S{i}", publisher="p", description=f"d{i}", source="t") for i in range(50)
+    ]
     res = db.bulk_add(servers)
     assert res["new"] == 50
     res2 = db.bulk_add(servers)

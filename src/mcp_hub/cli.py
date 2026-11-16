@@ -5,7 +5,17 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, alerts, doctor, exporters, github_enrich, registry_api, saved_searches, scheduler, taxonomy
+from . import (
+    __version__,
+    alerts,
+    doctor,
+    exporters,
+    github_enrich,
+    registry_api,
+    saved_searches,
+    scheduler,
+    taxonomy,
+)
 from .database import Catalog
 from .models import Server
 
@@ -70,7 +80,11 @@ def cmd_import_text(args):
 
 def cmd_search(args):
     db = _db(args)
-    rows = db.search_fts(args.query, limit=int(args.limit)) if args.fts else db.search(args.query, limit=int(args.limit))
+    rows = (
+        db.search_fts(args.query, limit=int(args.limit))
+        if args.fts
+        else db.search(args.query, limit=int(args.limit))
+    )
     print(json.dumps({"count": len(rows), "results": rows}, ensure_ascii=False, indent=2))
 
 
@@ -152,7 +166,9 @@ def cmd_serve(args):
     try:
         import uvicorn
     except Exception as e:  # noqa: BLE001
-        print("uvicorn/fastapi not installed. Install with: pip install mcp-hub[api]", file=sys.stderr)
+        print(
+            "uvicorn/fastapi not installed. Install with: pip install mcp-hub[api]", file=sys.stderr
+        )
         print(str(e), file=sys.stderr)
         return 2
     from .api import create_app
