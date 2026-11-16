@@ -127,12 +127,18 @@ jobs:
       # Attestations off: an attached SBOM makes Trivy scan that document
       # instead of the image filesystem, which reports stale packages.
       - name: Build image for scanning
-        run: docker build --provenance=false --sbom=false -t mcp-hub:scan .
+        run: |
+          docker build --provenance=false --sbom=false -t mcp-hub:scan .
+          docker save mcp-hub:scan -o /tmp/mcp-hub.tar
+
+      - name: Debug — locate embedded SBOM
+        run: |
+          docker run --rm --entrypoint sh mcp-hub:scan -c 'find / -xdev \( -name "*.spdx*" -o -name "*.cdx*" -o -name "*.bom.*" \) 2>/dev/null | head -10'
 
       - name: Trivy (CRITICAL + HIGH, blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: mcp-hub:scan
+          input: /tmp/mcp-hub.tar
           format: sarif
           output: trivy.sarif
           severity: CRITICAL,HIGH
