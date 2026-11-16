@@ -2,7 +2,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.1.1
+- **Version:** 1.2.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
@@ -106,6 +106,70 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 | `GET/POST /api/alerts` | alert channels |
 
 When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`.
+
+## Use mcp-hub inside Cursor (MCP server)
+
+`mcp-hub` can run as a local **MCP server**, exposing its catalog as read-only
+tools that Cursor's Agent (and any MCP host) can call directly.
+
+### Install
+
+```bash
+pip install -e ".[mcp-server]"
+```
+
+### Register with Cursor
+
+Option A — manual. Add to `.cursor/mcp.json` (copy of `examples/cursor-mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-hub": {
+      "command": "/absolute/path/to/your/venv/bin/python",
+      "args": ["-m", "mcp_hub.mcp_server"],
+      "env": { "MCP_HUB_DB": "/absolute/path/to/mcp_hub.sqlite3" }
+    }
+  }
+}
+```
+
+Option B — if you also have the `fastmcp` CLI installed:
+
+```bash
+fastmcp install cursor src/mcp_hub/mcp_server.py --project .
+```
+
+### Available tools (all read-only)
+
+| Tool | What it does |
+|---|---|
+| `search_servers` | Search by name, publisher, description, category, topic |
+| `get_server` | Full details for one server (incl. enrichment) |
+| `list_categories` | Category distribution |
+| `servers_by_category` | Servers in a given category |
+| `provenance_conflicts` | Fields where sources disagree |
+| `provenance_events` | Audit trail for a server |
+| `doctor_report` | Read-only health checks |
+| `suggest_category` | Classifier suggestion for one server |
+
+Resource: `mcp-hub://stats` returns live catalog statistics as JSON.
+
+### Try it in Cursor
+
+After registering, open Cursor's Agent chat and ask:
+
+> *"Search the MCP catalog for PostgreSQL tools and show their publishers."*
+
+> *"Check server 42 for provenance conflicts and show the audit trail."*
+
+> *"Run doctor_report and tell me if there are any warnings."*
+
+### Security
+
+- All tools are **read-only**. No writes, no network calls, no shell.
+- Database path is read from the `MCP_HUB_DB` env var (default `mcp_hub.sqlite3`).
+- No tool accepts arbitrary file paths.
 
 ## Performance notes
 

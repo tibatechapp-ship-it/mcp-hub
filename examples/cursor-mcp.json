@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-hub": {
+      "command": "/absolute/path/to/your/venv/bin/python",
+      "args": ["-m", "mcp_hub.mcp_server"],
+      "env": {
+        "MCP_HUB_DB": "/absolute/path/to/mcp_hub.sqlite3"
+      }
+    }
+  }
+}
