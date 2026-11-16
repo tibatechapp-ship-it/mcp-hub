@@ -1,10 +1,15 @@
 # mcp-hub
 
+[![PyPI](https://img.shields.io/pypi/v/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
+[![Python](https://img.shields.io/pypi/pyversions/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
+[![CI](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml)
+
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
 - **Version:** 1.2.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
+- **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
 
 ## Why
@@ -31,7 +36,7 @@ docker run --rm -v $PWD/data:/data -p 127.0.0.1:8000:8000 \
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[api]"
+pip install "mcp-hub[api]"
 
 mcp-hub --db hub.sqlite3 sync-registry --limit 100
 mcp-hub --db hub.sqlite3 enrich-github --limit 50
@@ -39,6 +44,8 @@ mcp-hub --db hub.sqlite3 classify
 mcp-hub --db hub.sqlite3 search "postgres" --fts
 mcp-hub --db hub.sqlite3 serve --host 127.0.0.1 --port 8000
 ```
+
+Working from a checkout instead? `pip install -e ".[api,dev]"`.
 
 ## CLI highlights
 
