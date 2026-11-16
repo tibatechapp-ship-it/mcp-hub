@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.sqlite3
+*.sqlite3-*
+.git/
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+tests/
+docs/
+.env
+baseline-*.txt
+benchmark-results.json

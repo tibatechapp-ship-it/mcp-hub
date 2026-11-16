@@ -1,0 +1,17 @@
+services:
+  mcp-hub:
+    image: ghcr.io/tibatechapp-ship-it/mcp-hub:latest
+    container_name: mcp-hub
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - MCP_HUB_API_KEY=${MCP_HUB_API_KEY:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
