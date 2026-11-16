@@ -6,7 +6,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.2.0
+- **Version:** 1.3.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -193,7 +193,16 @@ Run `python scripts/benchmark.py` to generate `benchmark-results.json` on your m
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Defaults are localhost-only and no auth; enable `MCP_HUB_API_KEY` and run behind TLS when exposing the service.
+- **SSRF filter** on every user-supplied URL (webhook alerts, endpoint probes, registry sync):
+  HTTPS only, public IPs only, redirects re-validated, response size capped.
+- **Secret redaction** in every error detail, log line and alert payload — provider tokens,
+  bearer headers, PEM keys and `password=` values never leave the process.
+- **API hardening**: `debug=False`, generic body on 500s, CORS limited to localhost origins
+  (`MCP_HUB_CORS_ORIGINS` to widen), API key via `MCP_HUB_API_KEY`.
+- Defaults are localhost-only and unauthenticated — enable the key and put TLS in front when
+  exposing the service.
+
+Full policy, blocked ranges and limits: [`SECURITY.md`](SECURITY.md).
 
 ## Development
 
