@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-hub"
-version = "1.1.1"
+version = "1.2.0"
 description = "Local-first MCP server catalog: sync, search, classify, export"
 readme = "README.md"
 license = "Apache-2.0"
@@ -29,9 +29,11 @@ dev = [
   "pre-commit>=3.7",
 ]
 bench = ["aiohttp>=3.9"]
+mcp-server = ["mcp>=1.27,<3"]
 
 [project.scripts]
 mcp-hub = "mcp_hub.cli:main"
+mcp-hub-server = "mcp_hub.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcp_hub"]
@@ -46,3 +48,7 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "slow: long-running tests (10K+ rows); skip with -m 'not slow'",
+  "mcp: MCP server tests; requires mcp-server extra",
+]
