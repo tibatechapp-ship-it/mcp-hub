@@ -147,12 +147,12 @@ class Catalog:
         try:
             con.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS servers_fts USING "
-                "fts5(name, publisher, description, categories, content='servers', content_rowid='id')"
+                "fts5(name, publisher, description, categories)"
             )
-            # rebuild if empty but servers exist
             cnt = con.execute("SELECT COUNT(*) AS c FROM servers_fts").fetchone()["c"]
             srv = con.execute("SELECT COUNT(*) AS c FROM servers").fetchone()["c"]
             if srv and not cnt:
+                con.execute("DELETE FROM servers_fts")
                 con.execute(
                     "INSERT INTO servers_fts(rowid,name,publisher,description,categories) "
                     "SELECT id,name,publisher,description,categories FROM servers"
@@ -217,6 +217,26 @@ class Catalog:
         except Exception:
             return []
 
+    def _fts_upsert(
+        self,
+        con: sqlite3.Connection,
+        rowid: int,
+        name: str,
+        publisher: str,
+        description: str,
+        categories: str,
+    ) -> None:
+        if not self._fts_enabled:
+            return
+        try:
+            con.execute("DELETE FROM servers_fts WHERE rowid=?", (int(rowid),))
+            con.execute(
+                "INSERT INTO servers_fts(rowid,name,publisher,description,categories) VALUES (?,?,?,?,?)",
+                (int(rowid), name or "", publisher or "", description or "", categories or ""),
+            )
+        except Exception:
+            pass
+
     def _insert_server_row(self, con: sqlite3.Connection, data: dict[str, Any]) -> int:
         cols = (
             "name",
@@ -248,15 +268,7 @@ class Catalog:
             tuple(values),
         )
         new_id = int(cur.lastrowid)
-        if self._fts_enabled:
-            try:
-                con.execute(
-                    "INSERT INTO servers_fts(rowid,name,publisher,description,categories) "
-                    "VALUES (?,?,?,?,?)",
-                    (new_id, values[0], values[1], values[2], values[8]),
-                )
-            except Exception:
-                pass
+        self._fts_upsert(con, new_id, values[0], values[1], values[2], values[8])
         return new_id
 
     def _detect_dupes(self, con: sqlite3.Connection, new_id: int, data: dict[str, Any]) -> None:
@@ -347,11 +359,14 @@ class Catalog:
             try:
                 rows = con.execute(
                     "SELECT s.* FROM servers_fts f JOIN servers s ON s.id=f.rowid "
-                    "WHERE servers_fts MATCH ? AND s.archived=0 "
+                    "WHERE f MATCH ? AND s.archived=0 "
                     "ORDER BY s.popularity DESC LIMIT ?",
                     (fts_q, int(limit)),
                 ).fetchall()
-                return [dict(r) for r in rows]
+                if rows:
+                    return [dict(r) for r in rows]
+                # fallback: try plain terms without strict quoting issues
+                return self.search(query, limit=limit)
             except Exception:
                 return self.search(query, limit=limit)
 

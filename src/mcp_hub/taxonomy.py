@@ -62,9 +62,10 @@ def classify_catalog(db, overwrite: bool = False) -> dict[str, int]:
                 )
                 if db.fts_enabled:
                     try:
+                        con.execute("DELETE FROM servers_fts WHERE rowid=?", (sid,))
                         con.execute(
-                            "UPDATE servers_fts SET categories=? WHERE rowid=?",
-                            (cats, sid),
+                            "INSERT INTO servers_fts(rowid,name,publisher,description,categories) VALUES (?,?,?,?,?)",
+                            (sid, srv.get("name", ""), srv.get("publisher", ""), srv.get("description", ""), cats),
                         )
                     except Exception:
                         pass
