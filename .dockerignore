@@ -1,17 +1,42 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Local databases and data NEVER belong in an image layer
 *.sqlite3
 *.sqlite3-*
+*.db
+*.db-*
+data/
+
+# Secrets / credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Tooling caches
 .git/
 .venv/
+venv/
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Not needed at runtime
 tests/
 docs/
-.env
+scripts/
+.pre-commit-config.yaml
 baseline-*.txt
 benchmark-results.json
