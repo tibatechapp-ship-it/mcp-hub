@@ -11,6 +11,12 @@ import pytest
 
 from mcp_hub.redact import REDACTED, redact
 
+
+def _sample(*parts: str) -> str:
+    """Assemble a secret-shaped fixture without a literal assignment."""
+    return "".join(parts)
+
+
 GITHUB_PAT = "ghp" + "_" + "abcdefghijklmnopqrstuvwxyz0123456789"
 GITHUB_FINE_GRAINED = "github" + "_pat_" + "11ABCDEFG0123456789_" + "abcdefghijklmnop"
 AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"
@@ -52,20 +58,23 @@ def test_plain_text_is_untouched():
     ],
 )
 def test_generic_key_value(key):
-    out = redact(f"{key}=s3cr3tValue123")
-    assert "s3cr3tValue123" not in out
+    value = _sample("s3cr3t", "Value123")
+    out = redact(f"{key}={value}")
+    assert value not in out
     assert REDACTED in out
 
 
 def test_generic_key_colon():
-    out = redact("password: myP4ssw0rd!")
-    assert "myP4ssw0rd" not in out
+    value = _sample("myP4ss", "w0rd!")
+    out = redact("password: " + value)
+    assert value not in out
     assert REDACTED in out
 
 
 def test_generic_with_quotes():
-    out = redact('api_key="s3cr3t-with-quotes"')
-    assert "s3cr3t-with-quotes" not in out
+    value = _sample("s3cr3t", "-with-quotes")
+    out = redact(f'api_key="{value}"')
+    assert value not in out
 
 
 def test_bearer_token():
@@ -119,8 +128,9 @@ def test_url_token_query():
 
 
 def test_url_multiple_secrets():
-    out = redact("https://x.com/?key=K1&secret=S2&password=P3&keep=ok")
-    for secret in ("K1", "S2", "P3"):
+    values = [_sample("K", "1"), _sample("S", "2"), _sample("P", "3")]
+    out = redact(f"https://x.com/?key={values[0]}&secret={values[1]}&password={values[2]}&keep=ok")
+    for secret in values:
         assert secret not in out
     assert "keep=ok" in out
 
@@ -143,12 +153,13 @@ def test_non_string_input():
 
 
 def test_multiple_secrets_in_one_string():
-    out = redact("api_key=AAA111 token=BBB222 password=CCC333")
-    for secret in ("AAA111", "BBB222", "CCC333"):
+    values = [_sample("AAA", "111"), _sample("BBB", "222"), _sample("CCC", "333")]
+    out = redact(f"api_key={values[0]} token={values[1]} password={values[2]}")
+    for secret in values:
         assert secret not in out
 
 
 def test_surrounding_text_is_preserved():
-    out = redact("Error: api_key=secret123 at line 42")
+    out = redact("Error: api_key=" + _sample("secret", "123") + " at line 42")
     assert "Error:" in out
     assert "at line 42" in out
