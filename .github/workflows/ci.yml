@@ -127,6 +127,10 @@ jobs:
       - name: Build image for scanning
         run: docker build -t mcp-hub:scan .
 
+      - name: Debug — locate setuptools copies
+        run: |
+          docker run --rm mcp-hub:scan sh -c 'find / -xdev \( -name "setuptools*" -o -name "*setuptools*dist-info*" \) 2>/dev/null | head -20'
+
       - name: Trivy (CRITICAL + HIGH, blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
