@@ -11,6 +11,7 @@ from . import (
     doctor,
     exporters,
     github_enrich,
+    provenance,
     registry_api,
     saved_searches,
     scheduler,
@@ -98,6 +99,24 @@ def cmd_classify(args):
     db = _db(args)
     res = taxonomy.classify_catalog(db, overwrite=bool(args.overwrite))
     print(json.dumps(res, ensure_ascii=False, indent=2))
+
+
+def cmd_provenance(args):
+    db = _db(args)
+    if not db.get_server(args.server_id):
+        print(
+            json.dumps({"error": f"server {args.server_id} not found"}, ensure_ascii=False),
+            file=sys.stderr,
+        )
+        return 1
+    if args.events:
+        data = provenance.event_history(db, args.server_id, limit=int(args.limit))
+    elif args.conflicts_only:
+        data = provenance.field_conflicts(db, args.server_id)
+    else:
+        data = provenance.field_history(db, args.server_id, args.field)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
 
 
 def cmd_export(args):
@@ -215,6 +234,22 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("classify", help="Classify servers into categories")
     s.add_argument("--overwrite", action="store_true")
     s.set_defaults(func=cmd_classify)
+
+    s = sub.add_parser("provenance", help="Show provenance (by field or by event)")
+    s.add_argument("server_id", type=int)
+    s.add_argument("--field", default=None, help="Filter to a single field (e.g. 'description')")
+    s.add_argument(
+        "--conflicts-only",
+        action="store_true",
+        help="Only show fields where sources disagree",
+    )
+    s.add_argument(
+        "--events",
+        action="store_true",
+        help="Show the audit trail (event history) instead of fields",
+    )
+    s.add_argument("--limit", type=int, default=50, help="Event history limit (only with --events)")
+    s.set_defaults(func=cmd_provenance)
 
     s = sub.add_parser("export", help="Export catalog")
     s.add_argument("format", choices=["json", "csv", "markdown", "md"])

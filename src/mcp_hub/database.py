@@ -18,6 +18,28 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+# Bumped when provenance needs a one-time backfill (see _backfill_field_provenance).
+_SCHEMA_VERSION = 1
+
+_PROVENANCE_TRACKED_FIELDS = frozenset(
+    {
+        "name",
+        "publisher",
+        "description",
+        "repository_url",
+        "endpoint_url",
+        "popularity",
+        "stars",
+        "forks",
+        "license",
+        "last_pushed_at",
+        "topics",
+        "categories",
+        "health_status",
+    }
+)
+
+
 class Catalog:
     def __init__(self, path: str | Path = "mcp_hub.sqlite3"):
         self.path = Path(path)
@@ -68,6 +90,15 @@ class Catalog:
                 payload_json TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS field_provenance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER NOT NULL,
+                field_name TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT '',
+                value TEXT NOT NULL DEFAULT '',
+                set_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, field_name, source)
             );
             CREATE TABLE IF NOT EXISTS duplicate_candidates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,6 +166,10 @@ class Catalog:
             "CREATE INDEX IF NOT EXISTS idx_servers_active ON servers(archived, popularity DESC)",
             "CREATE INDEX IF NOT EXISTS idx_dupes_a ON duplicate_candidates(server_a)",
             "CREATE INDEX IF NOT EXISTS idx_dupes_b ON duplicate_candidates(server_b)",
+            "CREATE INDEX IF NOT EXISTS idx_fp_server ON field_provenance(server_id)",
+            "CREATE INDEX IF NOT EXISTS idx_fp_field ON field_provenance(server_id, field_name)",
+            "CREATE INDEX IF NOT EXISTS idx_fp_source ON field_provenance(source)",
+            "CREATE INDEX IF NOT EXISTS idx_fp_set_at ON field_provenance(set_at)",
         ):
             con.execute(stmt)
         # migrations
@@ -143,6 +178,48 @@ class Catalog:
             con.execute(
                 "ALTER TABLE scheduler_runs ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0"
             )
+        self._backfill_field_provenance(con)
+
+    def _backfill_field_provenance(self, con: sqlite3.Connection) -> None:
+        """One-time, idempotent migration: provenance JSON -> field_provenance index.
+
+        Guarded by PRAGMA user_version so it runs once per database file.
+        Later writes win (rows are replayed chronologically).
+        """
+        if con.execute("PRAGMA user_version").fetchone()[0] >= _SCHEMA_VERSION:
+            return
+        cols = {r[1] for r in con.execute("PRAGMA table_info(provenance)")}
+        ts_col = "set_at" if "set_at" in cols else "created_at"
+        rows = con.execute(
+            f"SELECT server_id, source, payload_json, {ts_col} AS set_at "
+            "FROM provenance ORDER BY id ASC"
+        ).fetchall()
+        for r in rows:
+            if r["server_id"] is None:
+                continue
+            try:
+                payload = json.loads(r["payload_json"] or "{}")
+            except Exception:
+                continue
+            if not isinstance(payload, dict):
+                continue
+            for field, value in payload.items():
+                if field not in _PROVENANCE_TRACKED_FIELDS:
+                    continue
+                con.execute(
+                    "INSERT INTO field_provenance "
+                    "(server_id, field_name, source, value, set_at) VALUES (?,?,?,?,?) "
+                    "ON CONFLICT(server_id, field_name, source) DO UPDATE SET "
+                    "value=excluded.value, set_at=excluded.set_at",
+                    (
+                        int(r["server_id"]),
+                        field,
+                        r["source"] or "unknown",
+                        "" if value is None else str(value),
+                        r["set_at"],
+                    ),
+                )
+        con.execute(f"PRAGMA user_version={_SCHEMA_VERSION}")
 
     def _ensure_fts(self, con: sqlite3.Connection) -> None:
         try:
@@ -298,7 +375,7 @@ class Catalog:
             if existing:
                 return None
             new_id = self._insert_server_row(con, data)
-            _prov.record_row(self, new_id, data.get("source", "") or "unknown", data)
+            _prov.record_row(con, new_id, data.get("source", "") or "unknown", data)
             self._detect_dupes(con, new_id, data)
             return new_id
 
@@ -320,7 +397,7 @@ class Catalog:
                     skipped += 1
                 else:
                     new_id = self._insert_server_row(con, data)
-                    _prov.record_row(self, new_id, data.get("source", "") or "unknown", data)
+                    _prov.record_row(con, new_id, data.get("source", "") or "unknown", data)
                     self._detect_dupes(con, new_id, data)
                     new_ids.append(new_id)
                     new_count += 1
@@ -390,6 +467,11 @@ class Catalog:
             return [dict(r) for r in rows]
 
     def save_enrichment(self, server_id: int, data: dict[str, Any]) -> None:
+        stars = int(data.get("stars", 0) or 0)
+        forks = int(data.get("forks", 0) or 0)
+        license_name = (data.get("license") or "").strip()
+        pushed_at = (data.get("pushed_at") or "").strip()
+        topics = (data.get("topics") or "").strip()
         with self.connect() as con:
             con.execute(
                 "INSERT INTO enrichments "
@@ -401,12 +483,25 @@ class Catalog:
                 "enriched_at=CURRENT_TIMESTAMP",
                 (
                     int(server_id),
-                    int(data.get("stars", 0) or 0),
-                    int(data.get("forks", 0) or 0),
-                    (data.get("license") or "").strip(),
-                    (data.get("pushed_at") or "").strip(),
-                    (data.get("topics") or "").strip(),
+                    stars,
+                    forks,
+                    license_name,
+                    pushed_at,
+                    topics,
                 ),
+            )
+            # dual write: audit event + field index, same transaction
+            _prov.record_row(
+                con,
+                server_id,
+                "github",
+                {
+                    "stars": stars,
+                    "forks": forks,
+                    "license": license_name,
+                    "last_pushed_at": pushed_at,
+                    "topics": topics,
+                },
             )
 
     # ---- categories ----
@@ -454,6 +549,7 @@ class Catalog:
                 "ON CONFLICT(server_id) DO UPDATE SET categories=excluded.categories",
                 (int(server_id), cats),
             )
+            _prov.record(con, server_id, "categories", "override", cats)
 
     def clear_category_override(self, server_id: int) -> bool:
         with self.connect() as con:
