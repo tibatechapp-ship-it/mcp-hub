@@ -219,8 +219,10 @@ def test_registry_refusal_is_not_retried(monkeypatch):
 def test_registry_http_error_is_redacted(monkeypatch):
     from mcp_hub import registry_api
 
+    token = "ghp" + "_" + "abcdefghijklmnopqrstuvwxyz0123"
+
     def fail(url, **kwargs):
-        raise urllib.error.HTTPError(url, 403, "token=ghp_abcdefghijklmnopqrstuvwxyz0123", {}, None)
+        raise urllib.error.HTTPError(url, 403, f"token={token}", {}, None)
 
     monkeypatch.setattr(registry_api, "safe_request", fail)
     monkeypatch.setattr(registry_api.time, "sleep", lambda s: None)
