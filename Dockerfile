@@ -30,7 +30,11 @@ COPY src ./src
 # Keep the bundled packaging tools current — they ship in the runtime image
 # and Trivy audits them like any other package.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir ".[api]"
+    && pip install --no-cache-dir ".[api]" \
+    # pip ships a CycloneDX bill-of-materials of its vendored packages. It is
+    # stale by design (setuptools 70.3.0) and scanners read it as the image's
+    # SBOM, hiding the real filesystem. Drop it.
+    && rm -f /usr/local/lib/python3*/site-packages/pip/_vendor/bom.cdx.json
 
 RUN mkdir -p /data && chown mcphub:mcphub /data
 VOLUME ["/data"]
