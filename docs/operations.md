@@ -19,8 +19,12 @@ mcp-hub --db /data/catalog.sqlite3 restore /backups/catalog-2026-01-01.sqlite3 -
 ```
 
 `restore` verifies the checksum **before** touching anything, moves the current
-database to `<db>.pre-restore`, and rolls back if the restored file fails its
-checksum. Without `--force` it refuses to replace an existing database.
+database — and its `-wal` / `-shm` sidecars, which belong to the same file set —
+to `<db>.pre-restore*`, and rolls back if the restored file fails its checksum.
+Without `--force` it refuses to replace an existing database.
+
+Stop the service before restoring: another process holding the database open
+will keep writing to the file you just replaced.
 
 ## Health and diagnostics
 
@@ -35,7 +39,19 @@ when it says the current one is stale.
 
 ## Monitoring
 
-Scrape `/metrics` with Prometheus. Useful series:
+Scrape `/metrics` with Prometheus. If an API key is configured, send it —
+`/metrics` is gated like the API:
+
+```yaml
+scrape_configs:
+  - job_name: mcp-hub
+    authorization:
+      credentials: <your key>
+    static_configs:
+      - targets: ["127.0.0.1:8000"]
+```
+
+Useful series:
 
 - `mcp_hub_requests_total{status="429"}` — you are being throttled
 - `mcp_hub_requests_total{status="413"}` — a client is sending oversized bodies

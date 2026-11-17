@@ -14,7 +14,8 @@ No key configured → the API is open (fine for localhost only).
 | `MCP_HUB_API_KEYS="alice:k1,bob:k2:ro"` | same | `:ro` keys may only read |
 
 `/api/health` and `/` never require a key, so a load balancer can probe the
-service without credentials. A read-only key that tries a `POST`/`DELETE` gets
+service without credentials. Everything else is gated — including `/metrics`,
+which carries catalog counts even though it does not live under `/api/`. A read-only key that tries a `POST`/`DELETE` gets
 `403`. Every key is compared in constant time, and all configured keys are
 compared (no early exit), so timing does not reveal which key matched.
 
@@ -36,7 +37,7 @@ compared (no early exit), so timing does not reveal which key matched.
 | POST | `/api/categories/classify?overwrite=` | Classify catalog |
 | GET | `/api/categories/export`, POST `/api/categories/import` | Round-trip rules |
 | GET/POST | `/api/alerts` | Webhook channels |
-| GET | `/metrics` | Prometheus text |
+| GET | `/metrics` | Prometheus text (API key required when one is configured) |
 
 ## Paging
 
@@ -50,6 +51,11 @@ compared (no early exit), so timing does not reveal which key matched.
 returns `"next_offset": null` instead of a link to an empty page. Ordering is
 `popularity DESC, id DESC` on both the LIKE and the FTS path, so pages cannot
 shuffle between requests.
+
+`fts=1` runs a real FTS5 query: whole-word tokens, so `alpha` does **not** match
+`alphabet`. The default (LIKE) path is a substring match, so it does. Past the
+end of the FTS result set the page is empty — the two result sets are never
+mixed inside one paging session.
 
 ## Tracing and metrics
 
