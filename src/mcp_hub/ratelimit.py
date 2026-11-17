@@ -22,6 +22,7 @@ reverse proxy that enforces its own limit.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import sqlite3
 import threading
@@ -182,6 +183,10 @@ def install_rate_limit(
     store = (store or os.environ.get("MCP_HUB_RATE_LIMIT_STORE", "memory")).strip().lower()
     capacity = int(per_minute)
     rate = per_minute / 60.0
+    # One token refills every 60/per_minute seconds; that is how long a client
+    # has to wait for the next request to be allowed. The old fixed 60 told a
+    # client to sleep a full minute for a 1-second wait.
+    retry_after = str(max(1, math.ceil(60 / per_minute)))
 
     sqlite_store: SqliteTokenBucketStore | None = None
     if store == "sqlite":
@@ -217,6 +222,6 @@ def install_rate_limit(
             return JSONResponse(
                 {"detail": "rate limit exceeded"},
                 status_code=429,
-                headers={"Retry-After": "60"},
+                headers={"Retry-After": retry_after},
             )
         return await call_next(request)

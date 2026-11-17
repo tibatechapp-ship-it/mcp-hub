@@ -123,7 +123,12 @@ def add_auth_middleware(
         )
         matched = _match(provided, configured)
         if matched is None:
-            return JSONResponse(status_code=401, content={"detail": "missing or invalid API key"})
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "missing or invalid API key"},
+                # Tells a client which scheme to use instead of guessing.
+                headers={"WWW-Authenticate": 'Bearer realm="mcp-hub"'},
+            )
         if matched.read_only and request.method not in _SAFE_METHODS:
             return JSONResponse(
                 status_code=403,
