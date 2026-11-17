@@ -4,8 +4,10 @@
 #   PYTHONPATH=src python3 -m pytest -q --cov=mcp_hub ; ruff check . ; ruff format --check . ; mypy
 
 ## NOW
-Phases 0–5 are merged and main is green. Phase 6 (publishing) is deliberately untouched — it
-needs the user: a PyPI pending publisher, then a tag. Nothing else is open: 0 PRs, 0 issues.
+Phases 0–5 + the review pass are merged (`de9d4c56`). The user asked for a full pre-release
+sweep, then publishing: working through **P5.5 — release completeness** (PR K code, PR L
+release engineering, PR M repo settings), then Phase 6. P5.5 is the only thing between the
+current state and a tag.
 
 ## Done
 - [x] P0 baseline truth — matrix 3.10–3.13 blocking + 3.14 advisory, mypy strict on the
@@ -22,6 +24,16 @@ needs the user: a PyPI pending publisher, then a tag. Nothing else is open: 0 PR
 - [x] P5 dependency debt — checkout 7, setup-python 7, metadata 6, build-push 7,
       download-artifact 8 merged; #9 (`python:3.15-slim`) closed; base pinned to
       `python:3.13-slim`; dependabot grouping live. #23 / 4b73c656
+
+## P5.5 — release completeness (user asked for this before publishing)
+- [ ] K — error-path headers on 500, `WWW-Authenticate` on 401, `Retry-After` from the
+      refill rate, dashboard key in `sessionStorage`, tests for `github_enrich` / webhook
+      delivery / `safe_fetch` transport, coverage 93.7% → 95%
+- [ ] L — version 1.4.0 + CHANGELOG, `publish.yml` also triggers on `v*` tag push, docs
+      workflow deploys to GitHub Pages, `docs` extra + mypy in `dev`, sdist includes docs,
+      README refresh (badges, 1.4.0, Pages link)
+- [ ] M — repo settings: homepage, topics, Pages (workflow source), branch protection with
+      required checks, `enforce_admins: false` so the owner can always merge
 
 ## Phase 6 — publishing (needs the user, do not start unasked)
 - [ ] PyPI pending publisher: project `mcp-hub`, owner `tibatechapp-ship-it`,
