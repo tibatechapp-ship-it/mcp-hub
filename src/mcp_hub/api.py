@@ -5,7 +5,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from . import __version__, alerts, saved_searches, scheduler, taxonomy
 from . import provenance as _provenance
@@ -13,6 +13,7 @@ from .auth import add_auth_middleware
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
 from .headers import CSP_NONCE_PLACEHOLDER, install_security_headers
+from .metrics import install_observability, metrics_endpoint
 from .payload_limit import install_payload_limit
 from .ratelimit import install_rate_limit
 from .redact import redact
@@ -54,6 +55,7 @@ def create_app(
     # Added last so it is the outermost middleware: 401/429/413 responses carry
     # the header set too.
     install_security_headers(app)
+    install_observability(app)
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
@@ -82,9 +84,34 @@ def create_app(
         return catalog.stats()
 
     @app.get("/api/search")
-    def search(q: str = "", limit: int = Query(50, ge=1, le=200), fts: bool = False):
-        results = catalog.search_fts(q, limit=limit) if fts else catalog.search(q, limit=limit)
-        return {"query": q, "count": len(results), "results": results}
+    def search(
+        q: str = "",
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        fts: bool = False,
+    ):
+        # Fetch one extra row so `next_offset` is exact instead of a guess: a
+        # full page is not proof that another page exists.
+        probe = (
+            catalog.search_fts(q, limit=limit + 1, offset=offset)
+            if fts
+            else catalog.search(q, limit=limit + 1, offset=offset)
+        )
+        has_more = len(probe) > limit
+        results = probe[:limit]
+        next_offset = offset + limit if has_more else None
+        return {
+            "query": q,
+            "count": len(results),
+            "limit": limit,
+            "offset": offset,
+            "next_offset": next_offset,
+            "results": results,
+        }
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    def metrics():
+        return metrics_endpoint(catalog)
 
     @app.get("/api/servers/{server_id}")
     def get_server(server_id: int):
