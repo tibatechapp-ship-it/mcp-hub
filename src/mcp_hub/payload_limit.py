@@ -13,9 +13,12 @@ Configuration via env var:
 from __future__ import annotations
 
 import os
+from collections.abc import Awaitable, Callable
 
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
+from starlette.types import Message
 
 __all__ = ["install_payload_limit"]
 
@@ -41,12 +44,14 @@ def _too_large(max_bytes: int) -> JSONResponse:
     )
 
 
-def install_payload_limit(app, max_bytes: int | None = None) -> None:
+def install_payload_limit(app: FastAPI, max_bytes: int | None = None) -> None:
     if max_bytes is None:
         max_bytes = _max_bytes_from_env()
 
     @app.middleware("http")
-    async def _payload_mw(request: Request, call_next):
+    async def _payload_mw(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if request.method not in BODY_METHODS:
             return await call_next(request)
 
@@ -64,7 +69,7 @@ def install_payload_limit(app, max_bytes: int | None = None) -> None:
         received = 0
         receive = request._receive  # noqa: SLF001 — Starlette has no public seam here
 
-        async def _counting_receive():
+        async def _counting_receive() -> Message:
             nonlocal received
             message = await receive()
             if message.get("type") == "http.request":

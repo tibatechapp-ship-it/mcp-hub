@@ -16,9 +16,11 @@ from __future__ import annotations
 import os
 import threading
 import time
+from collections.abc import Awaitable, Callable
 
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 __all__ = ["install_rate_limit", "TokenBucket"]
 
@@ -75,7 +77,7 @@ def _per_minute_from_env() -> int:
         return 120
 
 
-def install_rate_limit(app, per_minute: int | None = None) -> None:
+def install_rate_limit(app: FastAPI, per_minute: int | None = None) -> None:
     """
     Install a token-bucket rate limiter on /api/* (except the exempt paths).
 
@@ -102,7 +104,9 @@ def install_rate_limit(app, per_minute: int | None = None) -> None:
             return bucket
 
     @app.middleware("http")
-    async def _rate_limit_mw(request: Request, call_next):
+    async def _rate_limit_mw(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         path = request.url.path
         if not path.startswith("/api/") or path in EXEMPT_PATHS:
             return await call_next(request)
