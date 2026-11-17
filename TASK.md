@@ -26,10 +26,10 @@ current state and a tag.
       `python:3.13-slim`; dependabot grouping live. #23 / 4b73c656
 
 ## P5.5 — release completeness (user asked for this before publishing)
-- [ ] K — error-path headers on 500, `WWW-Authenticate` on 401, `Retry-After` from the
+- [x] K — error-path headers on 500, `WWW-Authenticate` on 401, `Retry-After` from the
       refill rate, dashboard key in `sessionStorage`, tests for `github_enrich` / webhook
-      delivery / `safe_fetch` transport, coverage 93.7% → 95%
-- [ ] L — version 1.4.0 + CHANGELOG, `publish.yml` also triggers on `v*` tag push, docs
+      delivery / `safe_fetch` transport, coverage 93.7% → 95%. #33 / 22a34039
+- [ ] L — version 1.4.0 (in flight) + CHANGELOG, `publish.yml` also triggers on `v*` tag push, docs
       workflow deploys to GitHub Pages, `docs` extra + mypy in `dev`, sdist includes docs,
       README refresh (badges, 1.4.0, Pages link)
 - [ ] M — repo settings: homepage, topics, Pages (workflow source), branch protection with

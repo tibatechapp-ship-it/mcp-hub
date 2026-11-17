@@ -1,5 +1,77 @@
 # Changelog
 
+## [1.4.0] — 2026-11-17
+
+Release-hardening line. A default loopback install behaves as before; every item
+below is about being trustworthy once the API leaves `127.0.0.1` — and about
+being installable, testable and documented like a real project.
+
+### Added
+- **Nonce-based CSP and a full header set** on every response (`headers.py`):
+  `default-src 'self'`, no `unsafe-inline`, `nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP, and HSTS only when
+  the request actually arrived over TLS.
+- **Multi-key auth** — `MCP_HUB_API_KEYS="name:secret,name2:secret2:ro"`.
+  `:ro` keys get `403` on any write; the compare is constant-time against every
+  key (no early exit), so timing reveals neither a hit nor a position.
+  `401` now carries `WWW-Authenticate: Bearer realm="mcp-hub"`.
+- **Payload cap as raw ASGI middleware** — 1 MiB (`MCP_HUB_MAX_BODY_BYTES`),
+  checked against `Content-Length` and enforced while streaming, so chunked
+  uploads get `413` instead of a truncated `500`.
+- **Rate limiting with a shared store** — 120 req/min per IP
+  (`MCP_HUB_RATE_LIMIT_PER_MIN`), `429` + `Retry-After` derived from the refill
+  rate. `MCP_HUB_RATE_LIMIT_STORE=sqlite` shares buckets across workers;
+  `WEB_CONCURRENCY>1` with the memory store logs a warning at startup.
+- **`backup` / `verify-backup` / `restore`** — SQLite online backup API,
+  SHA-256 sidecar, `<db>.pre-restore*` rollback, `--force` required to replace an
+  existing database. `restore` moves the `-wal`/`-shm` sidecars with the file.
+- **`doctor`** — journal mode, WAL size, vacuum advice and backup freshness.
+- **Exact pagination** — `/api/search` returns `offset`/`next_offset`; the query
+  fetches `limit + 1` rows, so the last page is `null` rather than a link to an
+  empty page.
+- **`/metrics`** — Prometheus text: request counts by method/status/route
+  template, latency sum and count, catalog gauges. Key-gated like the API.
+- **`X-Request-ID`** — echoed when the caller supplies a safe one, generated
+  otherwise, present on error responses too.
+- **`mkdocs` documentation site** — install, CLI, HTTP API, security model,
+  operations; built with `--strict` in CI and published to GitHub Pages.
+- **CI hardening** — test matrix 3.10–3.13 blocking plus 3.14 advisory, mypy
+  `strict` over the security core, coverage floor at 88 (measured 95), bandit,
+  semgrep, pip-audit, pip-licenses, Trivy image gate with SARIF to the Security
+  tab, SBOM in the release, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue
+  templates, pre-commit.
+
+### Changed
+- `/api/*` **and** `/metrics` are gated when a key is configured; `/api/health`
+  and `/` stay open for probes.
+- `X-Forwarded-For` is honoured only from a loopback peer, and the **last** hop
+  (the one the proxy appended) is the bucket key.
+- Docker base pinned to `python:3.13-slim`; the image runs as the unprivileged
+  `mcphub` user with a `HEALTHCHECK`.
+- Dependabot: grouped minor/patch updates, majors single so they revert alone.
+
+### Fixed
+- **FTS5 search never ran.** `WHERE f MATCH ?` used the join alias, which SQLite
+  rejects (`no such column: f`); a broad `except` swallowed it, so `fts=True`
+  silently returned LIKE results. Now `servers_fts MATCH ?`, and a failure logs
+  instead of hiding.
+- **Old databases could not be opened** (`no such column: archived`) — the
+  migration ran after the index creation that needed the column.
+- **Dashboard buttons did nothing** — `onclick=` attributes are blocked by a
+  nonce CSP (a nonce only whitelists `<script>` elements). Wired from the
+  nonce'd script instead.
+- **`restore` left a stale WAL** next to the restored database.
+- **500 responses shipped without headers** — the exception handler runs in
+  Starlette's `ServerErrorMiddleware`, outside the middleware stack.
+- **`Retry-After: 60`** on a 120 req/min limit told clients to wait a minute for
+  a one-second refill.
+- Dashboard API key moved from `localStorage` to `sessionStorage` (per tab).
+- Rate-limit buckets were keyed on the client-supplied XFF prefix, letting a
+  caller pick its own bucket.
+
+### Removed
+- Nothing. `1.3.x` databases are opened in place and upgraded on first use.
+
 ## [1.3.1] — 2026-11-17
 
 Security hardening release. No behaviour change for a default local
