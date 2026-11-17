@@ -132,7 +132,10 @@ def _client_ip(request: Request) -> str:
     """Best-effort client IP, honouring X-Forwarded-For only from a local proxy."""
     xff = request.headers.get("x-forwarded-for")
     if xff and request.client and request.client.host in {"127.0.0.1", "::1"}:
-        return xff.split(",")[0].strip()
+        # The RIGHT-most entry is the address the proxy appended. Earlier
+        # entries are whatever the client sent, so keying on them would let a
+        # caller pick its own bucket (and rotate it at will).
+        return xff.split(",")[-1].strip() or "unknown"
     return request.client.host if request.client else "unknown"
 
 
