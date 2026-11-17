@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-hub"
-version = "1.3.1"
+version = "1.4.0"
 description = "Local-first MCP server catalog: sync, search, classify, export"
 readme = "README.md"
 license = "Apache-2.0"
@@ -36,7 +36,7 @@ Homepage = "https://github.com/tibatechapp-ship-it/mcp-hub"
 Repository = "https://github.com/tibatechapp-ship-it/mcp-hub"
 Issues = "https://github.com/tibatechapp-ship-it/mcp-hub/issues"
 Changelog = "https://github.com/tibatechapp-ship-it/mcp-hub/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/tibatechapp-ship-it/mcp-hub#readme"
+Documentation = "https://tibatechapp-ship-it.github.io/mcp-hub/"
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110,<1.0", "uvicorn>=0.27,<1.0"]
@@ -44,9 +44,11 @@ dev = [
   "pytest>=9.0.3,<10",
   "pytest-cov>=7.0,<8",
   "ruff>=0.5.0,<1.0",
+  "mypy>=1.10,<2",
   "httpx>=0.27,<1.0",
   "pre-commit>=3.7,<5",
 ]
+docs = ["mkdocs>=1.6,<2"]
 bench = ["aiohttp>=3.9,<4"]
 mcp-server = ["mcp>=1.27,<3"]
 
@@ -67,6 +69,9 @@ include = [
   "/CHANGELOG.md",
   "/CONTRIBUTING.md",
   "/SECURITY.md",
+  "/SECURITY_AUDIT.md",
+  "/docs",
+  "/mkdocs.yml",
   "/pyproject.toml",
 ]
 
