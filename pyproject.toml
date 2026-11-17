@@ -89,6 +89,8 @@ markers = [
 python_version = "3.10"
 strict = true
 files = [
+    "src/mcp_hub/auth.py",
+    "src/mcp_hub/headers.py",
     "src/mcp_hub/ratelimit.py",
     "src/mcp_hub/payload_limit.py",
     "src/mcp_hub/safe_fetch.py",
