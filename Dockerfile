@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1.6
-FROM python:3.12-slim AS base
+# Pinned to the oldest line that still gets security updates *and* has a
+# published base image. Dependabot's python:3.15-slim bump is closed: 3.15 is
+# not released, so that tag resolves to a pre-release Debian snapshot with no
+# patch stream behind it. 3.13 is the current stable line.
+FROM python:3.13-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
