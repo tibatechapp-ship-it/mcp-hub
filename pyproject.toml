@@ -100,6 +100,6 @@ files = [
 # noise, a gate on the security core is a promise that can be kept.
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 88
 show_missing = true
 skip_covered = false
