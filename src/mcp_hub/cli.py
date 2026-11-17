@@ -17,6 +17,9 @@ from . import (
     scheduler,
     taxonomy,
 )
+from . import (
+    backup as backup_mod,
+)
 from .database import Catalog
 from .models import Server
 
@@ -35,6 +38,36 @@ def cmd_doctor(args):
         print(json.dumps(res, ensure_ascii=False))
     else:
         print(json.dumps(res, ensure_ascii=False, indent=2))
+
+
+def cmd_backup(args):
+    try:
+        res = backup_mod.backup(args.db, args.destination)
+    except backup_mod.BackupError as e:
+        print(f"backup failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(res, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_restore(args):
+    try:
+        res = backup_mod.restore(args.source, args.db, force=args.force)
+    except backup_mod.BackupError as e:
+        print(f"restore failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(res, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_verify_backup(args):
+    try:
+        checksum = backup_mod.verify_backup(args.file)
+    except backup_mod.BackupError as e:
+        print(f"verify failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps({"file": args.file, "sha256": checksum, "status": "ok"}))
+    return 0
 
 
 def cmd_sync_registry(args):
@@ -205,6 +238,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("stats", help="Show catalog stats")
     s.set_defaults(func=cmd_stats)
+
+    s = sub.add_parser("backup", help="Consistent snapshot of the database")
+    s.add_argument("destination", help="Path for the backup file")
+    s.set_defaults(func=cmd_backup)
+
+    s = sub.add_parser("restore", help="Replace the database from a verified backup")
+    s.add_argument("source", help="Backup file created by `mcp-hub backup`")
+    s.add_argument("--force", action="store_true", help="Replace an existing database")
+    s.set_defaults(func=cmd_restore)
+
+    s = sub.add_parser("verify-backup", help="Check a backup against its checksum")
+    s.add_argument("file")
+    s.set_defaults(func=cmd_verify_backup)
 
     s = sub.add_parser("doctor", help="Run diagnostics")
     s.add_argument("--json", action="store_true", help="Machine-readable output")
