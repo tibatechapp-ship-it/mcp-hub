@@ -60,3 +60,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: sbom.spdx.json
           fail_on_unmatched_files: true
+          # The release page is the first thing a user reads; let GitHub list
+          # the merged PRs instead of shipping an empty body.
+          generate_release_notes: true
