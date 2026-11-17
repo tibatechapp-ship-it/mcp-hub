@@ -211,3 +211,38 @@ def test_doctor_reports_journal_and_pages(tmp_path):
     assert result["journal_mode"] in {"delete", "wal", "truncate", "persist", "memory"}
     assert int(result["pages"]) > 0
     assert "backup" in str(result["backup_hint"])
+
+
+def test_restore_moves_the_wal_and_shm_aside(tmp_path):
+    """A stale -wal next to the restored file is how a restore corrupts a DB."""
+    db = tmp_path / "cat.sqlite3"
+    _seed(db)
+    snapshot = tmp_path / "snap.sqlite3"
+    backup(db, snapshot)
+
+    # Simulate a database that was left with an open WAL when it was moved.
+    wal = tmp_path / "cat.sqlite3-wal"
+    shm = tmp_path / "cat.sqlite3-shm"
+    wal.write_bytes(b"stale wal")
+    shm.write_bytes(b"stale shm")
+
+    result = restore(snapshot, db, force=True)
+
+    assert not wal.exists() and not shm.exists()
+    previous = tmp_path / "cat.sqlite3.pre-restore"
+    assert previous.exists()
+    assert (tmp_path / "cat.sqlite3.pre-restore-wal").read_bytes() == b"stale wal"
+    assert (tmp_path / "cat.sqlite3.pre-restore-shm").read_bytes() == b"stale shm"
+    assert result["previous"] == str(previous)
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT COUNT(*) FROM servers").fetchone()[0] == 2
+
+
+def test_restore_without_sidecars_still_works(tmp_path):
+    db = tmp_path / "cat.sqlite3"
+    _seed(db)
+    snapshot = tmp_path / "snap.sqlite3"
+    backup(db, snapshot)
+    assert restore(snapshot, db, force=True)["bytes"] == snapshot.stat().st_size
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT COUNT(*) FROM servers").fetchone()[0] == 2
