@@ -8,7 +8,7 @@ HTML = r"""<!doctype html>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>mcp-hub dashboard</title>
-<style>
+<style nonce="__CSP_NONCE__">
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0b1020;color:#e7ecff}
 header{padding:16px 20px;border-bottom:1px solid #27304d;background:#121833;position:sticky;top:0}
 h1{margin:0;font-size:20px}
@@ -45,7 +45,7 @@ pre{white-space:pre-wrap}
     <div id="runs" class="muted">Loading…</div>
   </div>
 </main>
-<script>
+<script nonce="__CSP_NONCE__">
 const $ = (s)=>document.querySelector(s);
 const API_KEY = localStorage.getItem('mcp_hub_api_key') || '';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}

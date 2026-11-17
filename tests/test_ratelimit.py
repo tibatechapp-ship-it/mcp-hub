@@ -98,3 +98,95 @@ def test_payload_limit_standalone_app():
     install_payload_limit(app, max_bytes=5)
     client = TestClient(app)
     assert client.post("/echo", json={"a": "0123456789"}).status_code == 413
+
+
+# --- shared (sqlite) store — v1.3.1 ---------------------------------------
+
+
+def _sqlite_store(tmp_path, capacity=2, rate=1.0, name="rl.sqlite3"):
+    from mcp_hub.ratelimit import SqliteTokenBucketStore
+
+    return SqliteTokenBucketStore(str(tmp_path / name), capacity=capacity, rate=rate)
+
+
+def test_sqlite_store_rejects_bad_config(tmp_path):
+    from mcp_hub.ratelimit import SqliteTokenBucketStore
+
+    with pytest.raises(ValueError):
+        SqliteTokenBucketStore(str(tmp_path / "x.sqlite3"), capacity=0, rate=1.0)
+    with pytest.raises(ValueError):
+        SqliteTokenBucketStore(str(tmp_path / "x.sqlite3"), capacity=1, rate=0)
+
+
+def test_sqlite_store_drains_and_rejects(tmp_path):
+    store = _sqlite_store(tmp_path)
+    assert store.take("1.2.3.4") is True
+    assert store.take("1.2.3.4") is True
+    assert store.take("1.2.3.4") is False
+
+
+def test_sqlite_store_is_shared_between_instances(tmp_path):
+    """Two workers, two store objects, one database file — one budget."""
+    first = _sqlite_store(tmp_path)
+    second = _sqlite_store(tmp_path)
+    assert first.take("9.9.9.9") is True
+    assert second.take("9.9.9.9") is True
+    assert first.take("9.9.9.9") is False
+    assert second.take("9.9.9.9") is False
+
+
+def test_sqlite_store_keys_are_independent(tmp_path):
+    store = _sqlite_store(tmp_path, capacity=1)
+    assert store.take("a") is True
+    assert store.take("b") is True
+    assert store.take("a") is False
+
+
+def test_sqlite_store_refills_over_time(tmp_path, monkeypatch):
+    import mcp_hub.ratelimit as rl
+
+    clock = [1000.0]
+    monkeypatch.setattr(rl.time, "time", lambda: clock[0])
+    store = _sqlite_store(tmp_path, capacity=1, rate=0.5)  # one token / 2s
+    assert store.take("ip") is True
+    assert store.take("ip") is False
+    clock[0] += 2.0
+    assert store.take("ip") is True
+
+
+def test_install_rate_limit_uses_the_sqlite_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_PER_MIN", "0")
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_STORE", "sqlite")
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_DB", str(tmp_path / "shared.sqlite3"))
+    catalog = Catalog(tmp_path / "db.sqlite3")
+    app = create_app(catalog=catalog)
+    from mcp_hub.ratelimit import install_rate_limit
+
+    install_rate_limit(app, per_minute=2, store="sqlite", store_path=str(tmp_path / "s2.sqlite3"))
+    client = TestClient(app)
+    assert client.get("/api/stats").status_code == 200
+    assert client.get("/api/stats").status_code == 200
+    assert client.get("/api/stats").status_code == 429
+
+
+def test_multiprocess_warning_is_logged(tmp_path, monkeypatch, caplog):
+    import logging
+
+    from mcp_hub.ratelimit import install_rate_limit
+
+    monkeypatch.setenv("WEB_CONCURRENCY", "4")
+    app = FastAPI()
+    with caplog.at_level(logging.WARNING, logger="mcp_hub.ratelimit"):
+        install_rate_limit(app, per_minute=60, store="memory")
+    assert any("WEB_CONCURRENCY=4" in rec.getMessage() for rec in caplog.records)
+
+
+def test_no_warning_with_a_single_worker(monkeypatch, caplog):
+    import logging
+
+    from mcp_hub.ratelimit import install_rate_limit
+
+    monkeypatch.setenv("WEB_CONCURRENCY", "1")
+    with caplog.at_level(logging.WARNING, logger="mcp_hub.ratelimit"):
+        install_rate_limit(FastAPI(), per_minute=60)
+    assert not caplog.records

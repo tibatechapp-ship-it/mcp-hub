@@ -156,6 +156,49 @@ class Catalog:
             );
             """
         )
+        # Column-level migrations first. CREATE TABLE IF NOT EXISTS is a no-op
+        # when the table already exists, so a database written by an older
+        # release is missing every column added since — and the indexes below
+        # would fail on a column that is not there yet.
+        self._ensure_columns(
+            con,
+            "servers",
+            {
+                "popularity": "INTEGER NOT NULL DEFAULT 0",
+                "archived": "INTEGER NOT NULL DEFAULT 0",
+                "categories": "TEXT NOT NULL DEFAULT ''",
+                "raw_name": "TEXT NOT NULL DEFAULT ''",
+                "package_name": "TEXT NOT NULL DEFAULT ''",
+                "endpoint_url": "TEXT NOT NULL DEFAULT ''",
+                "repository_url": "TEXT NOT NULL DEFAULT ''",
+                "registry_id": "TEXT NOT NULL DEFAULT ''",
+                "source": "TEXT NOT NULL DEFAULT ''",
+                "description": "TEXT NOT NULL DEFAULT ''",
+                "publisher": "TEXT NOT NULL DEFAULT ''",
+                "name": "TEXT NOT NULL DEFAULT ''",
+                # ALTER TABLE cannot use a non-constant default, so these start
+                # empty and are stamped below.
+                "created_at": "TEXT NOT NULL DEFAULT ''",
+                "updated_at": "TEXT NOT NULL DEFAULT ''",
+            },
+        )
+        self._ensure_columns(
+            con,
+            "scheduler_runs",
+            {
+                "finished_at": "TEXT NOT NULL DEFAULT ''",
+                "total_searches": "INTEGER NOT NULL DEFAULT 0",
+                "total_new": "INTEGER NOT NULL DEFAULT 0",
+                "failed": "INTEGER NOT NULL DEFAULT 0",
+                "detail": "TEXT NOT NULL DEFAULT ''",
+                "duration_ms": "INTEGER NOT NULL DEFAULT 0",
+            },
+        )
+        con.execute("UPDATE servers SET created_at = CURRENT_TIMESTAMP WHERE created_at = ''")
+        con.execute("UPDATE servers SET updated_at = CURRENT_TIMESTAMP WHERE updated_at = ''")
+        con.execute(
+            "UPDATE scheduler_runs SET finished_at = CURRENT_TIMESTAMP WHERE finished_at = ''"
+        )
         # indexes (idempotent)
         for stmt in (
             "CREATE INDEX IF NOT EXISTS idx_servers_source ON servers(source)",
@@ -172,13 +215,15 @@ class Catalog:
             "CREATE INDEX IF NOT EXISTS idx_fp_set_at ON field_provenance(set_at)",
         ):
             con.execute(stmt)
-        # migrations
-        cols = {r[1] for r in con.execute("PRAGMA table_info(scheduler_runs)")}
-        if "duration_ms" not in cols:
-            con.execute(
-                "ALTER TABLE scheduler_runs ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0"
-            )
         self._backfill_field_provenance(con)
+
+    @staticmethod
+    def _ensure_columns(con: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+        """Add any column an older release did not have. Idempotent."""
+        existing = {row[1] for row in con.execute(f"PRAGMA table_info({table})")}
+        for name, ddl in columns.items():
+            if name not in existing:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
     def _backfill_field_provenance(self, con: sqlite3.Connection) -> None:
         """One-time, idempotent migration: provenance JSON -> field_provenance index.
@@ -419,22 +464,22 @@ class Catalog:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def search(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
+    def search(self, query: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         q = f"%{(query or '').strip()}%"
         if not query:
-            return self.list_servers(limit=limit)
+            return self.list_servers(limit=limit, offset=offset)
         with self.connect() as con:
             rows = con.execute(
                 "SELECT * FROM servers WHERE archived=0 AND "
                 "(name LIKE ? OR publisher LIKE ? OR description LIKE ? OR categories LIKE ?) "
-                "ORDER BY popularity DESC, id DESC LIMIT ?",
-                (q, q, q, q, int(limit)),
+                "ORDER BY popularity DESC, id DESC LIMIT ? OFFSET ?",
+                (q, q, q, q, int(limit), int(offset)),
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def search_fts(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
+    def search_fts(self, query: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         if not self._fts_enabled or not (query or "").strip():
-            return self.search(query, limit=limit)
+            return self.search(query, limit=limit, offset=offset)
         # basic escaping for FTS
         safe = (query or "").replace('"', " ").strip()
         fts_q = " ".join(f'"{w}"' for w in safe.split() if w)
@@ -445,15 +490,15 @@ class Catalog:
                 rows = con.execute(
                     "SELECT s.* FROM servers_fts f JOIN servers s ON s.id=f.rowid "
                     "WHERE f MATCH ? AND s.archived=0 "
-                    "ORDER BY s.popularity DESC LIMIT ?",
-                    (fts_q, int(limit)),
+                    "ORDER BY s.popularity DESC, s.id DESC LIMIT ? OFFSET ?",
+                    (fts_q, int(limit), int(offset)),
                 ).fetchall()
                 if rows:
                     return [dict(r) for r in rows]
                 # fallback: try plain terms without strict quoting issues
-                return self.search(query, limit=limit)
+                return self.search(query, limit=limit, offset=offset)
             except Exception:
-                return self.search(query, limit=limit)
+                return self.search(query, limit=limit, offset=offset)
 
     # ---- enrichments ----
     def servers_needing_enrichment(self, limit: int = 100) -> list[dict[str, Any]]:
