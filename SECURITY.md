@@ -40,7 +40,38 @@ header.
 `POST`/`PUT`/`PATCH` bodies larger than **1 MiB** are rejected with HTTP 413
 (override with `MCP_HUB_MAX_BODY_BYTES`). A declared `Content-Length` is
 checked before the body is read; a chunked upload without the header is
-counted as it streams and aborted at the cap.
+buffered only up to the cap and rejected the moment it is crossed, before the
+application runs. Memory is bounded by the cap, never by the upload size.
+
+**Multiple workers.** The default bucket store is in-process, so with N
+`uvicorn` workers the effective limit is N × the configured value. The server
+logs a warning when `WEB_CONCURRENCY > 1`. Set
+`MCP_HUB_RATE_LIMIT_STORE=sqlite` (and optionally `MCP_HUB_RATE_LIMIT_DB`) to
+share buckets between processes on one host.
+
+## Authentication (1.3.1+)
+
+`MCP_HUB_API_KEY` sets a single key. `MCP_HUB_API_KEYS` supersedes it with a
+list — `name:secret` or `name:secret:ro`, comma-separated:
+
+```
+MCP_HUB_API_KEYS="ci:KEY_READ_ONLY:ro,admin:KEY_FULL"
+```
+
+A `:ro` key may use `GET`/`HEAD`/`OPTIONS` only; any write is answered with
+`403`. Keys are compared with `hmac.compare_digest` against **every** configured
+key (no early exit), so response time does not reveal which key matched.
+`/api/health` stays open so container healthchecks and probes work without a
+credential.
+
+## Response headers (1.3.1+)
+
+Every response carries `Content-Security-Policy` (nonce-based, no
+`unsafe-inline`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: no-referrer`, `Permissions-Policy` and
+`Cross-Origin-Opener-Policy`. `Strict-Transport-Security` is added only when the
+request arrived over TLS (directly or via `X-Forwarded-Proto: https`) — never on
+plain HTTP, so a localhost session is not poisoned.
 
 ## Continuous security scanning (1.3.0+)
 
