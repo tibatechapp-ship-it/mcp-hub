@@ -84,3 +84,20 @@ markers = [
   "slow: long-running tests (10K+ rows); skip with -m 'not slow'",
   "mcp: MCP server tests; requires mcp-server extra",
 ]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = [
+    "src/mcp_hub/ratelimit.py",
+    "src/mcp_hub/payload_limit.py",
+    "src/mcp_hub/safe_fetch.py",
+    "src/mcp_hub/redact.py",
+]
+# Widen this list module by module; a repo-wide strict gate on day one would be
+# noise, a gate on the security core is a promise that can be kept.
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
