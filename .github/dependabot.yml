@@ -54,7 +54,7 @@ updates:
       # the wrong trade for a security tool. Drop this ignore when 3.15 GA
       # publishes an official slim image.
       - dependency-name: "python"
-        versions: ["3.15.x", "3.15.*"]
+        versions: ["3.15-slim"]
     labels: ["dependencies", "docker"]
     commit-message:
       prefix: deps
