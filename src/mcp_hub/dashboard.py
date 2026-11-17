@@ -30,9 +30,9 @@ pre{white-space:pre-wrap}
   <div class="card">
     <div class="row">
       <input id="q" placeholder="Search servers..." style="flex:1;min-width:220px"/>
-      <button onclick="doSearch()">Search</button>
-      <button onclick="loadStats()">Refresh stats</button>
-      <button onclick="runSaved()">Run saved searches</button>
+      <button id="btn-search">Search</button>
+      <button id="btn-stats">Refresh stats</button>
+      <button id="btn-runs">Run saved searches</button>
     </div>
     <div id="stats" class="muted" style="margin-top:10px"></div>
   </div>
@@ -91,6 +91,13 @@ async function runSaved(){
   try{ await fetchJSON('/api/searches/run-all',{method:'POST'}); await loadRuns(); }
   catch(e){ alert('run-all failed: '+e.message); }
 }
+// No inline event-handler attributes: the CSP has no 'unsafe-inline', so one
+// would be blocked by the browser and the button would silently do nothing.
+// Everything is wired from this nonce'd script instead.
+$('#btn-search').addEventListener('click', doSearch);
+$('#btn-stats').addEventListener('click', loadStats);
+$('#btn-runs').addEventListener('click', runSaved);
+$('#q').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doSearch(); });
 (async()=>{ try{ const h=await fetchJSON('/api/health'); $('#ver').textContent='v'+(h.version||''); }catch{}; loadStats(); loadRuns(); })();
 </script>
 </body>
