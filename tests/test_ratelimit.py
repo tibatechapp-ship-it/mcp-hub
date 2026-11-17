@@ -38,7 +38,8 @@ def test_rate_limit_enforced(tmp_path, monkeypatch):
         assert client.get("/api/stats").status_code == 200
     r = client.get("/api/stats")
     assert r.status_code == 429
-    assert r.headers["Retry-After"] == "60"
+    # 3/min → one token every 20 s, so that is what the client should wait.
+    assert r.headers["Retry-After"] == "20"
     assert r.json()["detail"] == "rate limit exceeded"
 
 

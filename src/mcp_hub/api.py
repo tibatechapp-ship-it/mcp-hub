@@ -12,8 +12,8 @@ from . import provenance as _provenance
 from .auth import add_auth_middleware
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
-from .headers import CSP_NONCE_PLACEHOLDER, install_security_headers
-from .metrics import install_observability, metrics_endpoint
+from .headers import CSP_NONCE_PLACEHOLDER, apply_headers, install_security_headers
+from .metrics import REQUEST_ID_HEADER, install_observability, metrics_endpoint
 from .payload_limit import install_payload_limit
 from .ratelimit import install_rate_limit
 from .redact import redact
@@ -60,11 +60,24 @@ def create_app(
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
-        """Return a stable body; never leak a traceback or a token."""
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "internal error", "type": redact(type(exc).__name__)},
+        """
+        Return a stable body; never leak a traceback or a token.
+
+        This handler runs in Starlette's ``ServerErrorMiddleware``, which sits
+        outside every ``@app.middleware`` — the response never passes back
+        through the header middleware, so the headers are applied here.
+        """
+        response = apply_headers(
+            JSONResponse(
+                status_code=500,
+                content={"detail": "internal error", "type": redact(type(exc).__name__)},
+            ),
+            request,
         )
+        request_id = getattr(request.state, "request_id", "")
+        if request_id:
+            response.headers[REQUEST_ID_HEADER] = request_id
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):

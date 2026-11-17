@@ -47,15 +47,17 @@ pre{white-space:pre-wrap}
 </main>
 <script nonce="__CSP_NONCE__">
 const $ = (s)=>document.querySelector(s);
-const API_KEY = localStorage.getItem('mcp_hub_api_key') || '';
+// sessionStorage, not localStorage: the key dies with the tab instead of
+// sitting in the browser profile where any XSS could read it weeks later.
+const API_KEY = sessionStorage.getItem('mcp_hub_api_key') || '';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 async function fetchJSON(url, opts={}){
   opts.headers = opts.headers || {};
   if (API_KEY) opts.headers['X-API-Key'] = API_KEY;
   const r = await fetch(url, opts);
   if (r.status === 401){
-    const k = prompt('This MCP Hub requires an API key:');
-    if (k){ localStorage.setItem('mcp_hub_api_key', k); location.reload(); }
+    const k = prompt('This MCP Hub requires an API key (kept for this tab only):');
+    if (k){ sessionStorage.setItem('mcp_hub_api_key', k); location.reload(); }
     throw new Error('unauthorized');
   }
   if (!r.ok) throw new Error(r.status + ': ' + await r.text());

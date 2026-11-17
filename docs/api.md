@@ -15,7 +15,11 @@ No key configured → the API is open (fine for localhost only).
 
 `/api/health` and `/` never require a key, so a load balancer can probe the
 service without credentials. Everything else is gated — including `/metrics`,
-which carries catalog counts even though it does not live under `/api/`. A read-only key that tries a `POST`/`DELETE` gets
+which carries catalog counts even though it does not live under `/api/`.
+
+A refused request answers `401` with
+`WWW-Authenticate: Bearer realm="mcp-hub"`, so a client knows which scheme to
+use instead of retrying blind. A read-only key that tries a `POST`/`DELETE` gets
 `403`. Every key is compared in constant time, and all configured keys are
 compared (no early exit), so timing does not reveal which key matched.
 
@@ -88,7 +92,7 @@ path, so cardinality stays bounded. Scraping `/metrics` is not counted.
 | `404` | Unknown server or saved search |
 | `413` | Body over `MCP_HUB_MAX_BODY_BYTES` (also for chunked bodies) |
 | `422` | Query parameter out of range (e.g. `limit=0`) |
-| `429` | Rate limit hit; `Retry-After` tells you when to retry |
+| `429` | Rate limit hit; `Retry-After` is the seconds until one token refills (`60 / limit`) |
 | `500` | Unhandled error — body is `{"detail":"internal error","type":"…"}`, never a traceback |
 
 ## Response headers
