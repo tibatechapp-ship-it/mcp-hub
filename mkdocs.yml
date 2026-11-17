@@ -1,0 +1,22 @@
+site_name: mcp-hub
+site_description: Local-first catalog for MCP servers
+repo_url: https://github.com/tibatechapp-ship-it/mcp-hub
+repo_name: tibatechapp-ship-it/mcp-hub
+edit_uri: edit/main/docs/
+docs_dir: docs
+theme:
+  name: mkdocs
+  nav_style: dark
+nav:
+  - Overview: index.md
+  - Install: install.md
+  - CLI reference: cli.md
+  - HTTP API: api.md
+  - Security model: security.md
+  - Operations: operations.md
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+strict: true

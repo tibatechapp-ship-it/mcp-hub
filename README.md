@@ -20,6 +20,7 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
+- **Docs:** [`docs/`](docs/index.md) — install, CLI, HTTP API, security model, operations
 
 ## Why
 
