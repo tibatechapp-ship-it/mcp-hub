@@ -136,3 +136,9 @@ def test_malformed_authorization_header_is_401(tmp_path, header):
     client = _client(tmp_path, [ApiKey("one", "k-one")])
     r = client.get("/api/stats", headers={"Authorization": header})
     assert r.status_code == 401
+
+
+def test_metrics_is_key_gated_even_though_it_is_not_under_api(tmp_path):
+    client = _client(tmp_path, [ApiKey("one", "k-one")])
+    assert client.get("/metrics").status_code == 401
+    assert client.get("/metrics", headers={"X-API-Key": "k-one"}).status_code == 200
