@@ -70,14 +70,14 @@ def cmd_verify_backup(args):
     return 0
 
 
+def _progress(done: int, total: int) -> None:
+    print(f"progress: {done}/{total}", file=sys.stderr)
+
+
 def cmd_sync_registry(args):
     db = _db(args)
     servers = registry_api.fetch_servers(limit=int(args.limit), cursor=args.cursor)
-
-    def prog(i, total):
-        print(f"progress: {i}/{total}", file=sys.stderr)
-
-    res = db.bulk_add(servers, progress_callback=prog)
+    res = db.bulk_add(servers, progress_callback=_progress)
     print(json.dumps(res, ensure_ascii=False, indent=2))
 
 
