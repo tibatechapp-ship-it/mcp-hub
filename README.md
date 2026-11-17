@@ -12,15 +12,24 @@
 [![PyPI](https://img.shields.io/pypi/v/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![CI](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://tibatechapp-ship-it.github.io/mcp-hub/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Container](https://img.shields.io/badge/ghcr.io-mcp--hub-blue.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/pkgs/container/mcp-hub)
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.3.1
+- **Version:** 1.4.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
-- **Docs:** [`docs/`](docs/index.md) — install, CLI, HTTP API, security model, operations
+- **Docs:** <https://tibatechapp-ship-it.github.io/mcp-hub/> (source in [`docs/`](docs/index.md))
+
+**New in 1.4.0** — hardened for exposure beyond loopback: nonce-based CSP,
+multi-key auth with read-only keys, a 1 MiB body cap, rate limiting with a shared
+SQLite store, `backup`/`restore` with checksums and rollback, exact pagination,
+Prometheus `/metrics`, `X-Request-ID`, a real FTS5 search path, and a
+`mkdocs` documentation site. Full list: [CHANGELOG.md](CHANGELOG.md).
 
 ## Why
 
@@ -123,7 +132,7 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 | `GET/POST /api/alerts` | alert channels |
 | `GET /metrics` | Prometheus text metrics (requests, refusals, latency, catalog size) |
 
-When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`. `MCP_HUB_API_KEYS="name:key,name2:key2:ro"` replaces it with a list; `:ro` keys are refused on any write.
+When `MCP_HUB_API_KEY` (or `--api-key`) is set, everything except `/api/health` and `/` requires `X-API-Key` or `Authorization: Bearer <key>` — `/metrics` included. `MCP_HUB_API_KEYS="name:key,name2:key2:ro"` replaces it with a list; `:ro` keys are refused on any write.
 
 **Paging.** `/api/search` takes `limit` (1–200) and `offset`. The response carries `offset`, `next_offset` (exactly `null` on the last page — the query fetches one extra row to know) and `count`.
 
