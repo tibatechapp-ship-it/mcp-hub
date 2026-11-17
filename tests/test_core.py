@@ -94,3 +94,30 @@ def test_doctor(tmp_path):
     res = doctor.run(db)
     assert res["db_ok"] is True
     assert "version" in res
+
+
+def test_fts_is_not_silently_the_like_search(tmp_path):
+    """`fts=True` must run FTS5, not fall back to LIKE on a swallowed error."""
+    from mcp_hub.database import Catalog
+    from mcp_hub.models import Server
+
+    db = Catalog(tmp_path / "db.sqlite3")
+    db.add_server(Server(name="alpha", publisher="acme", description="alpha tool", source="t"))
+    db.add_server(
+        Server(name="alphabet", publisher="acme", description="alphabet soup", source="t")
+    )
+
+    assert [r["name"] for r in db.search_fts("alpha")] == ["alpha"]
+    assert {r["name"] for r in db.search("alpha")} == {"alpha", "alphabet"}
+
+
+def test_fts_prefix_query_matches_word_starts(tmp_path):
+    from mcp_hub.database import Catalog
+    from mcp_hub.models import Server
+
+    db = Catalog(tmp_path / "db.sqlite3")
+    db.add_server(Server(name="postgres tool", publisher="p", description="sql", source="t"))
+    db.add_server(Server(name="redis tool", publisher="p", description="cache", source="t"))
+
+    assert [r["name"] for r in db.search_fts("postgres")] == ["postgres tool"]
+    assert db.search_fts("nosuchtoken") == []
