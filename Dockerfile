@@ -7,11 +7,34 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN useradd --create-home --uid 1000 mcphub
+
+# Pull the Debian security updates published after the base image snapshot.
+# The Trivy gate in CI scans this layer; an unpatched base is a red build.
+# The distro also ships an outdated python3-setuptools in dist-packages (not on
+# the app's sys.path — pip installs to /usr/local). Drop the stale copy so the
+# image carries exactly one, current setuptools.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get purge -y python3-setuptools \
+    && rm -rf /usr/lib/python3/dist-packages/setuptools* \
+              /usr/lib/python3/dist-packages/pkg_resources* \
+              /usr/lib/python3/dist-packages/_distutils_hack \
+              /usr/lib/python3/dist-packages/distutils-precedence.pth \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[api]"
+# Keep the bundled packaging tools current — they ship in the runtime image
+# and Trivy audits them like any other package.
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir ".[api]" \
+    # pip ships a CycloneDX bill-of-materials of its vendored packages. It is
+    # stale by design (setuptools 70.3.0) and scanners read it as the image's
+    # SBOM, hiding the real filesystem. Drop it.
+    && rm -f /usr/local/lib/python3*/site-packages/pip/_vendor/bom.cdx.json
 
 RUN mkdir -p /data && chown mcphub:mcphub /data
 VOLUME ["/data"]

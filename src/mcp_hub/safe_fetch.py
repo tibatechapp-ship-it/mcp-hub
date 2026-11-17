@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import typing
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -134,7 +135,15 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
 
     max_redirections = DEFAULT_MAX_REDIRECTS
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: typing.IO[bytes],
+        code: int,
+        msg: str,
+        headers: typing.Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         validate_url(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
@@ -142,7 +151,7 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
 class _LimitedResponse:
     """File-like wrapper that aborts once the byte budget is exhausted."""
 
-    def __init__(self, fp, max_bytes: int):
+    def __init__(self, fp: typing.IO[bytes], max_bytes: int) -> None:
         self._fp = fp
         self._max = max_bytes
         self._read = 0
@@ -151,11 +160,11 @@ class _LimitedResponse:
         remaining = self._max - self._read
         if remaining <= 0:
             raise UnsafeURLError(f"Response exceeds max size ({self._max} bytes)")
-        chunk = self._fp.read(remaining if n < 0 or n > remaining else n)
+        chunk: bytes = self._fp.read(remaining if n < 0 or n > remaining else n)
         self._read += len(chunk)
         return chunk
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> typing.Any:
         return getattr(self._fp, name)
 
 
@@ -183,7 +192,9 @@ def safe_request(
     validate_url(url)
 
     handler = _SafeRedirectHandler()
-    handler.max_redirections = max_redirects
+    # typeshed marks HTTPRedirectHandler.max_redirections as a ClassVar, so a
+    # per-request value has to be set through the instance anyway.
+    handler.max_redirections = max_redirects  # type: ignore[misc]
     opener = urllib.request.build_opener(handler)
 
     req_headers = {"User-Agent": "mcp-hub/safe-fetch"}
@@ -192,10 +203,10 @@ def safe_request(
 
     request = urllib.request.Request(url, data=data, method=method.upper(), headers=req_headers)
     with opener.open(request, timeout=timeout) as resp:
-        status = getattr(resp, "status", 200)
+        status = int(getattr(resp, "status", 200))
         if method.upper() == "HEAD":
             return status, b""
-        body = _LimitedResponse(resp, max_bytes + 1).read()
+        body: bytes = _LimitedResponse(resp, max_bytes + 1).read()
         if len(body) > max_bytes:
             raise UnsafeURLError(f"Response exceeds max size ({max_bytes} bytes)")
         return status, body

@@ -1,16 +1,26 @@
 # mcp-hub
 
+> ⚠️ **Security notice** — read before exposing this service
+>
+> `mcp-hub` binds to `127.0.0.1` by default. When you set `MCP_HUB_API_KEY`
+> and bind to a network interface (`--host 0.0.0.0`), **always run behind a
+> TLS-terminating reverse proxy** (Caddy, nginx, Cloudflare Tunnel).
+> Plain HTTP leaks the API key to every device on the network.
+>
+> Full security model: [SECURITY.md](SECURITY.md).
+
 [![PyPI](https://img.shields.io/pypi/v/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
 [![CI](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml)
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.3.0
+- **Version:** 1.3.1
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
+- **Docs:** [`docs/`](docs/index.md) — install, CLI, HTTP API, security model, operations
 
 ## Why
 
@@ -103,7 +113,7 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 |---|---|
 | `GET /api/health` | health + DB ping (always open) |
 | `GET /api/stats` | catalog stats |
-| `GET /api/search?q=&fts=` | search servers |
+| `GET /api/search?q=&fts=&limit=&offset=` | search servers, paged (`next_offset` is exact) |
 | `GET /api/servers/{id}` | server details |
 | `GET /api/servers/{id}/provenance` | provenance: `?mode=fields\|conflicts\|events&field=` |
 | `GET/POST/DELETE /api/searches*` | saved searches |
@@ -111,8 +121,13 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 | `GET /api/scheduler/runs` | recent batch runs |
 | `GET/POST /api/categories*` | custom categories & overrides |
 | `GET/POST /api/alerts` | alert channels |
+| `GET /metrics` | Prometheus text metrics (requests, refusals, latency, catalog size) |
 
-When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`.
+When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`. `MCP_HUB_API_KEYS="name:key,name2:key2:ro"` replaces it with a list; `:ro` keys are refused on any write.
+
+**Paging.** `/api/search` takes `limit` (1–200) and `offset`. The response carries `offset`, `next_offset` (exactly `null` on the last page — the query fetches one extra row to know) and `count`.
+
+**Tracing and metrics.** Every response carries `X-Request-ID`; send your own (up to 64 chars of `A-Za-z0-9._-`) and it is echoed back. `/metrics` renders Prometheus text: request counts by method/status/route template, latency sum and count, and catalog gauges.
 
 ## Use mcp-hub inside Cursor (MCP server)
 

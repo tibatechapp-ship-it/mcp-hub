@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.3.1] — 2026-11-17
+
+Security hardening release. No behaviour change for a default local
+installation; every item below closes a gap that only opens when the API is
+exposed beyond loopback.
+
+### Added
+- **Rate limiting** — `/api/*` (except `/api/health`, `/api/doctor`) is capped at
+  120 req/min per client IP, `429` + `Retry-After`. `X-Forwarded-For` is honoured
+  only from a loopback peer, so a remote caller cannot rotate buckets by
+  spoofing the header. `MCP_HUB_RATE_LIMIT_PER_MIN` (0 disables).
+- **Payload limits** — `POST`/`PUT`/`PATCH` bodies over 1 MiB get `413`, checked
+  against `Content-Length` before reading and enforced while streaming for
+  chunked uploads. `MCP_HUB_MAX_BODY_BYTES`.
+- **Continuous security scanning in CI** — bandit (SAST, blocks HIGH), semgrep
+  (`p/python`, `p/security-audit`), pip-audit (blocks any known CVE),
+  pip-licenses (blocks GPL/AGPL), Trivy on the built image (blocks CRITICAL +
+  HIGH with a fix available). Reports uploaded as artifacts; Trivy SARIF goes to
+  the Security tab.
+- **SBOM in the release** — `release.yml` publishes an SPDX JSON SBOM next to the
+  container image.
+- **Dependabot** — weekly PRs for pip, GitHub Actions and the Docker base image.
+- **`SECURITY_AUDIT.md`** — committed record of the full git-history secret scan.
+- README security notice (TLS reverse proxy requirement) and a SECURITY.md
+  section covering rate limiting, scanning and the dependency policy.
+
+### Changed
+- Every GitHub Action pinned to a full commit SHA with a `# vX.Y.Z` comment;
+  workflows carry scoped `permissions:` blocks.
+- Runtime and dev dependencies carry explicit upper bounds (next major).
+- `pytest >=9.0.3,<10` (PYSEC-2026-1845), `pytest-cov >=7.0,<8`.
+- Dockerfile: applies Debian security updates at build time, purges the distro
+  `python3-setuptools` that shadowed the pip-installed one, upgrades
+  `pip`/`setuptools`/`wheel`, drops the stale vendored SBOM
+  (`pip/_vendor/bom.cdx.json`) that made image scanners report phantom CVEs, and
+  runs as the unprivileged `mcphub` user.
+
+### Fixed
+- Image scan findings: `zlib1g` (CVE-2026-85091), bundled `pip`/`setuptools`
+  advisories.
+
 ## [1.3.0] - 2026-11-16
 
 ### Security (P0)
