@@ -190,3 +190,30 @@ def test_no_warning_with_a_single_worker(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING, logger="mcp_hub.ratelimit"):
         install_rate_limit(FastAPI(), per_minute=60)
     assert not caplog.records
+
+
+def test_forwarded_for_uses_the_proxy_appended_hop(tmp_path, monkeypatch):
+    """A caller must not be able to pick its own bucket by spoofing XFF."""
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_PER_MIN", "2")
+    catalog = Catalog(tmp_path / "db.sqlite3")
+    client = TestClient(create_app(catalog=catalog), client=("127.0.0.1", 50000))
+
+    xff = {"X-Forwarded-For": "1.1.1.1, 7.7.7.7"}
+    assert client.get("/api/stats", headers=xff).status_code == 200
+    assert client.get("/api/stats", headers=xff).status_code == 200
+    # Same real hop, different client-supplied prefix: still the same bucket.
+    spoofed = client.get("/api/stats", headers={"X-Forwarded-For": "2.2.2.2, 7.7.7.7"})
+    assert spoofed.status_code == 429
+    # A genuinely different peer gets its own bucket.
+    assert client.get("/api/stats", headers={"X-Forwarded-For": "8.8.8.8"}).status_code == 200
+
+
+def test_forwarded_for_is_ignored_from_a_remote_peer(tmp_path, monkeypatch):
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_PER_MIN", "1")
+    catalog = Catalog(tmp_path / "db.sqlite3")
+    client = TestClient(create_app(catalog=catalog), client=("203.0.113.9", 50000))
+
+    assert client.get("/api/stats", headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 200
+    # XFF from a non-loopback peer is not trusted, so the real socket address
+    # is still the bucket key and the limit holds.
+    assert client.get("/api/stats", headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 429

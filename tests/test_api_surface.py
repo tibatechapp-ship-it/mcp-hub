@@ -147,3 +147,28 @@ def test_health_reports_a_broken_database(tmp_path, monkeypatch):
     r = client.get("/api/health")
     assert r.status_code == 503
     assert r.json()["status"] == "error"
+
+
+def test_fts_page_past_the_end_is_empty(tmp_path):
+    """FTS hits and LIKE hits are different sets; paging must not switch sets."""
+    db = Catalog(tmp_path / "db.sqlite3")
+    db.add_server(Server(name="alpha", publisher="acme", description="alpha tool", source="t"))
+    # LIKE matches "alpha" inside "alphabet", FTS tokenizes it as one word and
+    # does not. So the FTS set is 1 row while the LIKE set is 2.
+    db.add_server(
+        Server(name="alphabet", publisher="acme", description="alphabet soup", source="t")
+    )
+    client = TestClient(create_app(catalog=db))
+
+    page0 = client.get("/api/search?q=alpha&fts=1&limit=1&offset=0").json()
+    # FTS matches the token "alpha" only; LIKE also matches inside "alphabet".
+    assert [r["name"] for r in page0["results"]] == ["alpha"]
+    assert page0["next_offset"] is None
+
+    beyond = client.get("/api/search?q=alpha&fts=1&limit=1&offset=1").json()
+    assert beyond["results"] == []
+    assert beyond["next_offset"] is None
+
+    # the LIKE path still sees both rows
+    like = client.get("/api/search?q=alpha&limit=10").json()
+    assert {r["name"] for r in like["results"]} == {"alpha", "alphabet"}

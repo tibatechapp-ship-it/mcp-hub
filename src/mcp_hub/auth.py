@@ -13,7 +13,16 @@ from starlette.responses import Response
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 # Health must stay reachable for probes and container healthchecks.
-_OPEN_PATHS = frozenset({"/api/health"})
+_OPEN_PATHS = frozenset({"/api/health", "/"})
+
+# /metrics carries catalog counts, so it is key-gated like the API even though
+# it does not live under /api/.
+_PROTECTED_PREFIXES = ("/api/",)
+_PROTECTED_EXACT = frozenset({"/metrics"})
+
+
+def _is_protected(path: str) -> bool:
+    return path in _PROTECTED_EXACT or path.startswith(_PROTECTED_PREFIXES)
 
 
 @dataclass(frozen=True)
@@ -107,7 +116,7 @@ def add_auth_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         path = request.url.path
-        if not path.startswith("/api/") or path in _OPEN_PATHS:
+        if not _is_protected(path) or path in _OPEN_PATHS:
             return await call_next(request)
         provided = request.headers.get("x-api-key") or _extract_bearer(
             request.headers.get("authorization")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
@@ -12,6 +13,8 @@ from . import provenance as _prov
 from .dedupe import compare
 from .models import Server
 from .normalize import normalize_categories, normalize_name, normalize_repo_url, normalize_url
+
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -487,17 +490,28 @@ class Catalog:
             return []
         with self.connect() as con:
             try:
+                # FTS5 wants the table name on the left of MATCH; using the
+                # join alias raises "no such column" and silently degrades the
+                # whole path to LIKE.
                 rows = con.execute(
                     "SELECT s.* FROM servers_fts f JOIN servers s ON s.id=f.rowid "
-                    "WHERE f MATCH ? AND s.archived=0 "
+                    "WHERE servers_fts MATCH ? AND s.archived=0 "
                     "ORDER BY s.popularity DESC, s.id DESC LIMIT ? OFFSET ?",
                     (fts_q, int(limit), int(offset)),
                 ).fetchall()
                 if rows:
                     return [dict(r) for r in rows]
+                if offset:
+                    # Past the end of the FTS result set. Falling back to LIKE
+                    # here would restart a *different* ordering mid-page and
+                    # repeat rows the caller already saw.
+                    return []
                 # fallback: try plain terms without strict quoting issues
                 return self.search(query, limit=limit, offset=offset)
-            except Exception:
+            except sqlite3.Error as e:
+                # Degrading to LIKE is acceptable; doing it silently is not —
+                # that is how a broken FTS query survives a year of green CI.
+                logger.warning("FTS query failed (%s); falling back to LIKE", e)
                 return self.search(query, limit=limit, offset=offset)
 
     # ---- enrichments ----

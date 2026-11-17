@@ -30,7 +30,7 @@ The image runs as a non-root user, stores the database in `/data`, and has a
 | `MCP_HUB_CORS_ORIGINS` | localhost:3000/5173 | Comma-separated allowed origins |
 | `MCP_HUB_RATE_LIMIT_PER_MIN` | `120` | Requests per minute per client IP |
 | `MCP_HUB_RATE_LIMIT_STORE` | `memory` | `sqlite` shares counters across workers |
-| `MCP_HUB_RATE_LIMIT_DB` | `<db>.ratelimit.sqlite3` | Store file for the sqlite backend |
+| `MCP_HUB_RATE_LIMIT_DB` | `mcp_hub-ratelimit.sqlite3` | Store file for the sqlite backend |
 | `MCP_HUB_MAX_BODY_BYTES` | `1048576` | Request body cap (1 MiB) |
 
 !!! warning "Multi-worker rate limiting"

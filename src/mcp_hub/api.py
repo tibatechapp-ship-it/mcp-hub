@@ -52,8 +52,9 @@ def create_app(
     # Runtime hardening: per-IP rate limit (P1.1) and body-size cap (P2.2).
     install_rate_limit(app)  # 120 req/min per IP, MCP_HUB_RATE_LIMIT_PER_MIN
     install_payload_limit(app)  # 1 MiB body cap, MCP_HUB_MAX_BODY_BYTES
-    # Added last so it is the outermost middleware: 401/429/413 responses carry
-    # the header set too.
+    # Middleware added later wraps earlier ones. Security headers are added
+    # after the limiters, so their 401/429/413 responses carry the header set;
+    # observability goes on top of everything so it can count those refusals.
     install_security_headers(app)
     install_observability(app)
 

@@ -66,6 +66,26 @@ def backup(db_path: str | Path, dest: str | Path) -> dict[str, object]:
     return {"path": str(target), "bytes": target.stat().st_size, "sha256": checksum}
 
 
+# SQLite keeps these next to the database; they belong to the same file set.
+_SIDECAR_SUFFIXES = ("-wal", "-shm")
+
+
+def _family(path: Path) -> list[Path]:
+    return [path.with_name(path.name + suffix) for suffix in ("", *_SIDECAR_SUFFIXES)]
+
+
+def _move_family(source: Path, dest: Path) -> None:
+    """Move `source` and its WAL/SHM sidecars to `dest` (+suffix)."""
+    for src, dst in zip(_family(source), _family(dest), strict=True):
+        if src.exists():
+            src.replace(dst)
+
+
+def _discard(path: Path) -> None:
+    for candidate in _family(path):
+        candidate.unlink(missing_ok=True)
+
+
 def verify_backup(path: str | Path) -> str:
     """Return the recorded checksum, raising if it does not match the file."""
     target = Path(path)
@@ -102,9 +122,11 @@ def restore(backup_path: str | Path, db_path: str | Path, force: bool = False) -
                 f"(the current file is kept as {target}.pre-restore)"
             )
         previous = target.with_name(target.name + ".pre-restore")
-        if previous.exists():
-            previous.unlink()
-        target.replace(previous)
+        _discard(previous)
+        # The WAL and shared-memory files belong to the database being moved
+        # aside. Leaving them behind would hand the restored file a stale write
+        # log, which is how a "successful" restore turns into a corrupt DB.
+        _move_family(target, previous)
 
     # Copy rather than move: the backup stays usable for a second attempt.
     with source.open("rb") as src, target.open("wb") as dst:
@@ -113,8 +135,8 @@ def restore(backup_path: str | Path, db_path: str | Path, force: bool = False) -
 
     if _checksum(target) != checksum:
         if previous is not None:
-            target.unlink(missing_ok=True)
-            previous.replace(target)
+            _discard(target)
+            _move_family(previous, target)
         raise BackupError("restored file does not match the backup checksum; rolled back")
 
     return {

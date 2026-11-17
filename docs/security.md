@@ -14,6 +14,8 @@ This page is the summary.
 | Write access for a read-only integration | `:ro` keys → `403` on `POST`/`DELETE` |
 | Oversized or slowloris bodies | 1 MiB cap enforced before the app runs, chunked bodies included |
 | Brute force / scraping | 120 req/min per IP, `429` + `Retry-After`; SQLite store for multi-worker |
+| X-Forwarded-For spoofing | XFF is honoured only from a loopback peer, and the **last** hop (the one the proxy appended) is the key |
+| Catalog counts leaking to anonymous callers | `/metrics` is key-gated like the API |
 | SSRF through remote fetch | `safe_fetch.py` blocks private/link-local/metadata addresses and re-validates redirects |
 | Secrets in error output | `redact.py` scrubs tokens from messages, URLs and 500 bodies |
 | XSS in the dashboard | Nonce-based CSP, no inline event handlers |
@@ -28,7 +30,10 @@ This page is the summary.
   the filesystem. Use disk encryption if that matters.
 - **The dashboard keeps the key in `localStorage`.** Prefer putting the service
   behind a proxy that injects `X-API-Key`, and leave the prompt empty.
-- **Rate limiting is per IP**, and the in-memory store is per process.
+- **Rate limiting is per IP**, and the in-memory store is per process. A
+  proxy that does not strip a client-supplied `X-Forwarded-For` can still hand
+  a caller a fresh bucket per request — configure the proxy to overwrite the
+  header, not append to it.
 
 ## Reporting a vulnerability
 
