@@ -112,7 +112,7 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 |---|---|
 | `GET /api/health` | health + DB ping (always open) |
 | `GET /api/stats` | catalog stats |
-| `GET /api/search?q=&fts=` | search servers |
+| `GET /api/search?q=&fts=&limit=&offset=` | search servers, paged (`next_offset` is exact) |
 | `GET /api/servers/{id}` | server details |
 | `GET /api/servers/{id}/provenance` | provenance: `?mode=fields\|conflicts\|events&field=` |
 | `GET/POST/DELETE /api/searches*` | saved searches |
@@ -120,8 +120,13 @@ REST equivalent: `GET /api/servers/{id}/provenance?mode=fields|conflicts|events&
 | `GET /api/scheduler/runs` | recent batch runs |
 | `GET/POST /api/categories*` | custom categories & overrides |
 | `GET/POST /api/alerts` | alert channels |
+| `GET /metrics` | Prometheus text metrics (requests, refusals, latency, catalog size) |
 
-When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`.
+When `MCP_HUB_API_KEY` (or `--api-key`) is set, all `/api/*` endpoints except `/api/health` require `X-API-Key` or `Authorization: Bearer <key>`. `MCP_HUB_API_KEYS="name:key,name2:key2:ro"` replaces it with a list; `:ro` keys are refused on any write.
+
+**Paging.** `/api/search` takes `limit` (1–200) and `offset`. The response carries `offset`, `next_offset` (exactly `null` on the last page — the query fetches one extra row to know) and `count`.
+
+**Tracing and metrics.** Every response carries `X-Request-ID`; send your own (up to 64 chars of `A-Za-z0-9._-`) and it is echoed back. `/metrics` renders Prometheus text: request counts by method/status/route template, latency sum and count, and catalog gauges.
 
 ## Use mcp-hub inside Cursor (MCP server)
 
