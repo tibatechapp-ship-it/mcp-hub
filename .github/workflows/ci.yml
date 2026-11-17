@@ -30,7 +30,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
-        run: pip install -e ".[dev,api]"
+        # The mcp-server extra is installed here as well: without it the MCP
+        # tests skip and the coverage number silently loses ~100 statements.
+        # The dedicated mcp-server job still exercises both SDK majors.
+        run: pip install -e ".[dev,api,mcp-server]"
       - name: Ruff
         if: matrix.python-version == '3.12'
         run: |
