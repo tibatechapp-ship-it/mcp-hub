@@ -9,9 +9,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from . import __version__, alerts, saved_searches, scheduler, taxonomy
 from . import provenance as _provenance
-from .auth import add_auth_middleware, get_api_key_from_env
+from .auth import add_auth_middleware
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
+from .headers import CSP_NONCE_PLACEHOLDER, install_security_headers
 from .payload_limit import install_payload_limit
 from .ratelimit import install_rate_limit
 from .redact import redact
@@ -36,7 +37,7 @@ def create_app(
 ):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
     app = FastAPI(title="mcp-hub", version=__version__, debug=False)
-    add_auth_middleware(app, api_key or get_api_key_from_env())
+    add_auth_middleware(app, api_key)
 
     app.add_middleware(
         CORSMiddleware,
@@ -50,6 +51,9 @@ def create_app(
     # Runtime hardening: per-IP rate limit (P1.1) and body-size cap (P2.2).
     install_rate_limit(app)  # 120 req/min per IP, MCP_HUB_RATE_LIMIT_PER_MIN
     install_payload_limit(app)  # 1 MiB body cap, MCP_HUB_MAX_BODY_BYTES
+    # Added last so it is the outermost middleware: 401/429/413 responses carry
+    # the header set too.
+    install_security_headers(app)
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
@@ -60,8 +64,9 @@ def create_app(
         )
 
     @app.get("/", response_class=HTMLResponse)
-    def index():
-        return DASHBOARD_HTML
+    def index(request: Request):
+        nonce = getattr(request.state, "csp_nonce", "")
+        return DASHBOARD_HTML.replace(CSP_NONCE_PLACEHOLDER, nonce)
 
     @app.get("/api/health")
     def health():
