@@ -19,7 +19,12 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request
 from starlette.responses import Response
 
-__all__ = ["install_security_headers", "CSP_NONCE_PLACEHOLDER", "build_csp"]
+__all__ = [
+    "CSP_NONCE_PLACEHOLDER",
+    "apply_headers",
+    "build_csp",
+    "install_security_headers",
+]
 
 # Replaced at render time in dashboard.py by the per-request nonce.
 CSP_NONCE_PLACEHOLDER = "__CSP_NONCE__"
@@ -49,6 +54,26 @@ def _is_https(request: Request) -> bool:
     return forwarded.split(",")[0].strip().lower() == "https"
 
 
+def apply_headers(response: Response, request: Request, nonce: str | None = None) -> Response:
+    """
+    Stamp the header set onto one response.
+
+    Public because a 500 built by Starlette's ``ServerErrorMiddleware`` never
+    travels back through this middleware (that handler sits outside the user
+    stack), so the error path has to apply the same headers itself.
+    """
+    nonce = nonce or getattr(request.state, "csp_nonce", "") or secrets.token_urlsafe(16)
+    response.headers["Content-Security-Policy"] = build_csp(nonce)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    if _is_https(request):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
 def install_security_headers(app: FastAPI) -> None:
     """Attach the header set to every response, HTML and JSON alike."""
 
@@ -59,13 +84,4 @@ def install_security_headers(app: FastAPI) -> None:
         nonce = secrets.token_urlsafe(16)
         # Routes that render HTML read the nonce from here.
         request.state.csp_nonce = nonce
-        response = await call_next(request)
-        response.headers["Content-Security-Policy"] = build_csp(nonce)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        if _is_https(request):
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        return response
+        return apply_headers(await call_next(request), request, nonce)
