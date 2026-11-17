@@ -464,22 +464,22 @@ class Catalog:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def search(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
+    def search(self, query: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         q = f"%{(query or '').strip()}%"
         if not query:
-            return self.list_servers(limit=limit)
+            return self.list_servers(limit=limit, offset=offset)
         with self.connect() as con:
             rows = con.execute(
                 "SELECT * FROM servers WHERE archived=0 AND "
                 "(name LIKE ? OR publisher LIKE ? OR description LIKE ? OR categories LIKE ?) "
-                "ORDER BY popularity DESC, id DESC LIMIT ?",
-                (q, q, q, q, int(limit)),
+                "ORDER BY popularity DESC, id DESC LIMIT ? OFFSET ?",
+                (q, q, q, q, int(limit), int(offset)),
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def search_fts(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
+    def search_fts(self, query: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         if not self._fts_enabled or not (query or "").strip():
-            return self.search(query, limit=limit)
+            return self.search(query, limit=limit, offset=offset)
         # basic escaping for FTS
         safe = (query or "").replace('"', " ").strip()
         fts_q = " ".join(f'"{w}"' for w in safe.split() if w)
@@ -490,15 +490,15 @@ class Catalog:
                 rows = con.execute(
                     "SELECT s.* FROM servers_fts f JOIN servers s ON s.id=f.rowid "
                     "WHERE f MATCH ? AND s.archived=0 "
-                    "ORDER BY s.popularity DESC LIMIT ?",
-                    (fts_q, int(limit)),
+                    "ORDER BY s.popularity DESC, s.id DESC LIMIT ? OFFSET ?",
+                    (fts_q, int(limit), int(offset)),
                 ).fetchall()
                 if rows:
                     return [dict(r) for r in rows]
                 # fallback: try plain terms without strict quoting issues
-                return self.search(query, limit=limit)
+                return self.search(query, limit=limit, offset=offset)
             except Exception:
-                return self.search(query, limit=limit)
+                return self.search(query, limit=limit, offset=offset)
 
     # ---- enrichments ----
     def servers_needing_enrichment(self, limit: int = 100) -> list[dict[str, Any]]:
