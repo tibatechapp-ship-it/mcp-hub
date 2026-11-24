@@ -230,7 +230,7 @@ def cmd_skill_approve(args):
 def cmd_skill_revoke(args):
     from .skills import SkillRegistry
 
-    removed = SkillRegistry(_db(args)).revoke(args.name)
+    removed = SkillRegistry(_db(args)).revoke(args.name, args.actor)
     print(
         json.dumps({"name": args.name, "approved": False, "removed": removed}, ensure_ascii=False)
     )
@@ -256,6 +256,36 @@ def cmd_task_cancel(args):
         result = TaskStore(_db(args)).cancel(args.task_id, args.tenant, args.session, args.reason)
     except TaskError as exc:
         print(f"task-cancel failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_task_list(args):
+    from .tasks import TaskError, TaskStore
+
+    try:
+        result = TaskStore(_db(args)).list(args.tenant, args.session, limit=args.limit)
+    except TaskError as exc:
+        print(f"task-list failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_task_approve(args):
+    from .tasks import TaskError, TaskStore
+
+    try:
+        result = TaskStore(_db(args)).approve(
+            args.task_id,
+            args.tenant,
+            args.session,
+            actor=args.actor,
+            reason=args.reason,
+        )
+    except TaskError as exc:
+        print(f"task-approve failed: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
@@ -536,6 +566,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("skill-revoke", help="Remove a stored skill approval")
     s.add_argument("name")
+    s.add_argument("--actor", default="local")
     s.set_defaults(func=cmd_skill_revoke)
 
     s = sub.add_parser("task-get", help="Read a scoped durable task")
@@ -550,6 +581,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--session", required=True)
     s.add_argument("--reason", default="cancelled by caller")
     s.set_defaults(func=cmd_task_cancel)
+
+    s = sub.add_parser("task-list", help="List scoped durable tasks")
+    s.add_argument("--tenant", required=True)
+    s.add_argument("--session", default=None)
+    s.add_argument("--limit", type=int, default=50)
+    s.set_defaults(func=cmd_task_list)
+
+    s = sub.add_parser("task-approve", help="Approve a task awaiting approval")
+    s.add_argument("task_id")
+    s.add_argument("--tenant", required=True)
+    s.add_argument("--session", required=True)
+    s.add_argument("--actor", default="local")
+    s.add_argument("--reason", default="approved by caller")
+    s.set_defaults(func=cmd_task_approve)
 
     s = sub.add_parser("persona-simulate", help="Replay a local deterministic tool chain")
     s.add_argument(

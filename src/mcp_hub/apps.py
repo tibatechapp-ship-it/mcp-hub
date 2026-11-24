@@ -273,7 +273,17 @@ def build_runtime(
                 for row in rows
                 if row.get("status") == "awaiting_approval"
             ]
-        return {"skills": skills_data, "pending_approvals": pending}
+        return {
+            "skills": skills_data,
+            "pending_approvals": pending,
+            "available_actions": [
+                {"method": "skills/approve", "name_param": "name", "write": True},
+                {"method": "skills/revoke", "name_param": "name", "write": True},
+                {"method": "tasks/approve", "name_param": "task_id", "write": True},
+                {"method": "tasks/list", "name_param": None, "write": False},
+            ],
+            "read_only_ui": True,
+        }
 
     def catalog_snapshot(params: Mapping[str, Any]) -> dict[str, Any]:
         _ = params

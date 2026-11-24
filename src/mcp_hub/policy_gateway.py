@@ -1,8 +1,9 @@
 """Zyko-compatible policy gateway for mcp-hub tool calls.
 
 The gateway is deliberately a pure-stdlib subset of ZYKO's Policy-as-Code
-schema: ``tools`` allow/deny, ``privacy`` redaction and ``audit``. Controls that
-ZYKO understands but mcp-hub cannot enforce (models, providers, budgets,
+schema: ``tools`` allow/deny, ``skills`` read allow/deny, ``approvals``
+write allow/deny, ``privacy`` redaction and ``audit``. Controls that ZYKO
+understands but mcp-hub cannot enforce (models, providers, budgets,
 rate_limit) are rejected instead of being silently ignored, so a policy file
 cannot *look* protective while doing nothing here.
 
@@ -39,9 +40,12 @@ ENV_POLICY_FILE = "MCP_HUB_POLICY_FILE"
 ENV_POLICY_JSON = "MCP_HUB_POLICY_JSON"
 ENV_AUDIT_PATH = "MCP_HUB_POLICY_AUDIT"
 
-_SUPPORTED_TOP_LEVEL = frozenset({"version", "name", "tools", "skills", "privacy", "audit"})
+_SUPPORTED_TOP_LEVEL = frozenset(
+    {"version", "name", "tools", "skills", "approvals", "privacy", "audit"}
+)
 _SUPPORTED_TOOLS = frozenset({"allow", "deny"})
 _SUPPORTED_SKILLS = frozenset({"allow", "deny"})
+_SUPPORTED_APPROVALS = frozenset({"allow", "deny"})
 _SUPPORTED_PRIVACY = frozenset({"redact", "custom"})
 _SUPPORTED_AUDIT = frozenset({"enabled", "path"})
 
@@ -80,12 +84,13 @@ class PolicyDecision:
 
 
 def builtin_default_policy() -> dict[str, Any]:
-    """Permissive tool gate that still redacts secrets from tool arguments."""
+    """Permissive read gate that redacts secrets and denies approval writes."""
     return {
         "version": 1,
         "name": "default",
         "tools": {"allow": ["*"], "deny": []},
         "skills": {"allow": ["*"], "deny": []},
+        "approvals": {"allow": [], "deny": []},
         "privacy": {"redact": ["secret"]},
         "audit": {"enabled": False},
     }
@@ -113,6 +118,7 @@ def _validate(doc: dict[str, Any]) -> None:
         raise ConfigError(f"unsupported policy schema version: {version!r} (expected 1)")
     _check_section(doc, "tools", _SUPPORTED_TOOLS)
     _check_section(doc, "skills", _SUPPORTED_SKILLS)
+    _check_section(doc, "approvals", _SUPPORTED_APPROVALS)
     _check_section(doc, "privacy", _SUPPORTED_PRIVACY)
     _check_section(doc, "audit", _SUPPORTED_AUDIT)
 
@@ -126,6 +132,8 @@ class PolicyGateway:
     tool_deny: tuple[str, ...] = ()
     skill_allow: tuple[str, ...] = ("*",)
     skill_deny: tuple[str, ...] = ()
+    approval_allow: tuple[str, ...] = ()
+    approval_deny: tuple[str, ...] = ()
     redact_names: tuple[str, ...] = ("secret",)
     custom_rules: tuple[tuple[re.Pattern[str], str], ...] = ()
     audit_enabled: bool = False
@@ -150,6 +158,17 @@ class PolicyGateway:
             raise ConfigError("skills.allow must be a list of strings")
         if not isinstance(skill_deny, list) or not all(isinstance(x, str) for x in skill_deny):
             raise ConfigError("skills.deny must be a list of strings")
+        approvals = doc.get("approvals") or {}
+        approval_allow = approvals.get("allow", [])
+        approval_deny = approvals.get("deny", [])
+        if not isinstance(approval_allow, list) or not all(
+            isinstance(x, str) for x in approval_allow
+        ):
+            raise ConfigError("approvals.allow must be a list of strings")
+        if not isinstance(approval_deny, list) or not all(
+            isinstance(x, str) for x in approval_deny
+        ):
+            raise ConfigError("approvals.deny must be a list of strings")
         names = privacy.get("redact") or ["secret"]
         if not isinstance(names, list) or not all(isinstance(x, str) for x in names):
             raise ConfigError("privacy.redact must be a list of strings")
@@ -178,6 +197,8 @@ class PolicyGateway:
             tool_deny=tuple(deny),
             skill_allow=tuple(skill_allow) or ("*",),
             skill_deny=tuple(skill_deny),
+            approval_allow=tuple(approval_allow),
+            approval_deny=tuple(approval_deny),
             redact_names=tuple(names),
             custom_rules=tuple(custom),
             audit_enabled=enabled,
@@ -211,6 +232,19 @@ class PolicyGateway:
     def enforce_skill(self, name: str) -> None:
         if not self.allows_skill(name):
             raise PolicyDenied(f"Skill blocked by policy: {name}", f"skills.deny:{name}")
+
+    def allows_approval(self, action: str) -> bool:
+        """Approval writes are never granted by ``tools`` or ``skills`` rules."""
+
+        if any(fnmatch.fnmatchcase(action, pattern) for pattern in self.approval_deny):
+            return False
+        return any(fnmatch.fnmatchcase(action, pattern) for pattern in self.approval_allow)
+
+    def enforce_approval(self, action: str) -> None:
+        if not self.allows_approval(action):
+            raise PolicyDenied(
+                f"Approval action blocked by policy: {action}", f"approvals.deny:{action}"
+            )
 
     def _scrub(self, value: Any, applied: list[str]) -> Any:
         if isinstance(value, str):
@@ -279,6 +313,8 @@ class PolicyGateway:
             "tools_deny": list(self.tool_deny),
             "skills_allow": list(self.skill_allow),
             "skills_deny": list(self.skill_deny),
+            "approvals_allow": list(self.approval_allow),
+            "approvals_deny": list(self.approval_deny),
             "redactions": list(self.redact_names),
             "custom_redaction_rules": len(self.custom_rules),
             "audit_enabled": self.audit_enabled,

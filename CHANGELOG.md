@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **Phase 5 actionable approvals**: a default-deny `approvals` policy section separate from tool and skill reads, MCP methods `skills/approve`, `skills/revoke`, `tasks/approve` and scoped `tasks/list`, digest-bound redacted skill approval events, atomic task approval under `BEGIN IMMEDIATE`, CLI `task-list` / `task-approve`, and read-only `available_actions` metadata in the approval Apps resource. The pinned tool manifest is unchanged.
+
 ## [1.5.0] — 2026-11-24
 
 Capability, protocol and observability line (PRs #40-#47). Builds on the 1.4.0

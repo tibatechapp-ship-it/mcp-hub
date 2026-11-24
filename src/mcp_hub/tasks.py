@@ -272,6 +272,44 @@ class TaskStore:
             event="cancelled",
         )
 
+    def approve(
+        self,
+        task_id: str,
+        tenant_id: str,
+        session_id: str,
+        *,
+        actor: str = "local",
+        reason: str = "approved by caller",
+    ) -> dict[str, Any]:
+        """Move an awaiting-approval task back to ``queued`` exactly once."""
+
+        identifier = _validate_id("task_id", task_id)
+        tenant = _validate_id("tenant_id", tenant_id)
+        session = _validate_id("session_id", session_id)
+        safe_actor = (_safe_text(actor, "actor") or "local")[:64]
+        safe_reason = _safe_text(reason, "reason") or "approved by caller"
+        detail = _canonical({"actor": safe_actor, "reason": safe_reason})
+        now = _utc_now()
+        with self.catalog.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = self._scoped_row(con, identifier, tenant, session)
+            if str(row["status"]) != "awaiting_approval":
+                raise TaskError("task is not awaiting approval")
+            cursor = con.execute(
+                "UPDATE agent_tasks SET status='queued', lease_owner=NULL, lease_until=NULL, "
+                "next_run_at=NULL, updated_at=?, error=? WHERE task_id=? AND tenant_id=? "
+                "AND session_id=? AND status='awaiting_approval'",
+                (now, row["error"], identifier, tenant, session),
+            )
+            if int(cursor.rowcount) != 1:
+                raise TaskError("task approval lost a concurrent update")
+            self._record_event(con, identifier, tenant, session, "approved", detail)
+            updated = con.execute(
+                "SELECT * FROM agent_tasks WHERE task_id=? AND tenant_id=? AND session_id=?",
+                (identifier, tenant, session),
+            ).fetchone()
+        return self._to_dict(updated)
+
     def reconcile_interrupted(self, tenant_id: str, session_id: str | None = None) -> int:
         tenant = _validate_id("tenant_id", tenant_id)
         session = _validate_id("session_id", session_id) if session_id else None

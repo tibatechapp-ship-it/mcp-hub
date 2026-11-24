@@ -76,13 +76,26 @@ NAME_HEADERS_PARAMS: Mapping[str, str] = MappingProxyType(
         "prompts/get": "name",
         "resources/read": "uri",
         "skills/get": "name",
+        "skills/approve": "name",
+        "skills/revoke": "name",
         "tasks/get": "task_id",
         "tasks/update": "task_id",
         "tasks/cancel": "task_id",
+        "tasks/approve": "task_id",
         "persona/simulate": "scenario",
     }
 )
 NAME_HEADERS_METHODS = frozenset(NAME_HEADERS_PARAMS)
+
+# Policy documents use dotted action names; MCP method names use slashes.
+APPROVAL_ACTIONS: Mapping[str, str] = MappingProxyType(
+    {
+        "skills/approve": "skills.approve",
+        "skills/revoke": "skills.revoke",
+        "tasks/approve": "tasks.approve",
+        "tasks/list": "tasks.list",
+    }
+)
 
 SENTINEL_PREFIX = "=?base64?"
 SENTINEL_SUFFIX = "?="
@@ -427,6 +440,8 @@ def handle(
     tool_policy: ToolPolicy | None = None,
     skill_handlers: Mapping[str, Handler] | None = None,
     skill_policy: ToolPolicy | None = None,
+    skill_approval_handlers: Mapping[str, Handler] | None = None,
+    approval_policy: ToolPolicy | None = None,
     task_handlers: Mapping[str, Handler] | None = None,
     persona_handler: Handler | None = None,
     telemetry: TelemetryAdapter | None = None,
@@ -511,7 +526,14 @@ def handle(
                 "resources": {"subscribe": False},
                 "prompts": {},
                 "skills": {"listChanged": False, "executionGranted": False},
-                "tasks": {"get": True, "update": True, "cancel": True},
+                "approvals": {"skills": True, "tasks": True},
+                "tasks": {
+                    "get": True,
+                    "list": True,
+                    "update": True,
+                    "cancel": True,
+                    "approve": True,
+                },
                 "persona": {"simulate": True},
             },
             "serverInfo": info,
@@ -703,13 +725,47 @@ def handle(
         result["_meta"] = meta
         return result
 
+    def approval_guard(method: str, checked: dict[str, Any]) -> dict[str, Any]:
+        if approval_policy is None:
+            raise MCPError(POLICY_DENIED, "Approval policy is not configured")
+        action = APPROVAL_ACTIONS.get(method, method.replace("/", ".", 1))
+        try:
+            return dict(approval_policy(action, checked))
+        except MCPError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - an invalid policy must fail closed
+            raise MCPError(POLICY_DENIED, f"Approval policy failed: {type(exc).__name__}") from exc
+
+    def skill_approval_operation(method: str) -> Callable[[], dict[str, Any]]:
+        def run() -> dict[str, Any]:
+            handler = (skill_approval_handlers or {}).get(method)
+            if handler is None:
+                raise MCPError(METHOD_NOT_FOUND, "Approval handlers are not configured")
+            checked = approval_guard(method, dict(params))
+            try:
+                raw = handler(checked)
+            except MCPError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - never leak a failed approval write
+                raise MCPError(
+                    POLICY_DENIED, f"Approval operation failed: {type(exc).__name__}"
+                ) from exc
+            result = dict(raw) if isinstance(raw, Mapping) else {"approved": raw}
+            result["_meta"] = meta
+            return result
+
+        return run
+
     def task_operation(method: str) -> Callable[[], dict[str, Any]]:
         def run() -> dict[str, Any]:
             handler = (task_handlers or {}).get(method)
             if handler is None:
                 raise MCPError(METHOD_NOT_FOUND, "Task store is not configured")
+            checked = (
+                approval_guard(method, dict(params)) if method == "tasks/approve" else dict(params)
+            )
             try:
-                raw = handler(dict(params))
+                raw = handler(checked)
             except MCPError:
                 raise
             except Exception as exc:  # noqa: BLE001 - isolation failures map to -10003
@@ -744,9 +800,13 @@ def handle(
         "prompts/get": get_prompt,
         "skills/list": list_skills,
         "skills/get": get_skill,
+        "skills/approve": skill_approval_operation("skills/approve"),
+        "skills/revoke": skill_approval_operation("skills/revoke"),
         "tasks/get": task_operation("tasks/get"),
+        "tasks/list": task_operation("tasks/list"),
         "tasks/update": task_operation("tasks/update"),
         "tasks/cancel": task_operation("tasks/cancel"),
+        "tasks/approve": task_operation("tasks/approve"),
         "persona/simulate": persona_simulate,
     }
     handler = dispatch.get(method)

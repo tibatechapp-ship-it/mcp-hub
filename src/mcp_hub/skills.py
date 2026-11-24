@@ -28,6 +28,7 @@ __all__ = [
     "SkillPackage",
     "SkillRegistry",
     "SKILL_RESOURCE_PREFIX",
+    "build_skill_approval_handlers",
     "load_skill",
 ]
 
@@ -252,6 +253,16 @@ class SkillRegistry:
                 "approved_at TEXT NOT NULL, "
                 "actor TEXT NOT NULL DEFAULT 'local')"
             )
+            con.execute(
+                "CREATE TABLE IF NOT EXISTS skill_approval_events ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "name TEXT NOT NULL, "
+                "sha256 TEXT NOT NULL, "
+                "action TEXT NOT NULL, "
+                "actor TEXT NOT NULL DEFAULT 'local', "
+                "detail TEXT NOT NULL DEFAULT '', "
+                "created_at TEXT NOT NULL)"
+            )
 
     def _load_packages(self) -> dict[str, SkillPackage]:
         packages: dict[str, SkillPackage] = {}
@@ -276,6 +287,42 @@ class SkillRegistry:
     def _with_approval(self, package: SkillPackage) -> SkillPackage:
         approved = self._approved_digest(package.name) == package.digest
         return replace(package, approved=approved)
+
+    @staticmethod
+    def _record_approval_event(
+        con: Any,
+        name: str,
+        digest: str,
+        action: str,
+        actor: str,
+        detail: str,
+    ) -> None:
+        con.execute(
+            "INSERT INTO skill_approval_events "
+            "(name,sha256,action,actor,detail,created_at) VALUES (?,?,?,?,?,?)",
+            (
+                name,
+                digest,
+                action,
+                redact(actor)[:64] or "local",
+                redact(detail)[:500],
+                _utc_now(),
+            ),
+        )
+
+    def approval_events(self, name: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Return redacted approval events, newest first."""
+        if not 1 <= limit <= 200:
+            raise SkillError("limit must be between 1 and 200")
+        sql = "SELECT name,sha256,action,actor,detail,created_at FROM skill_approval_events"
+        params: list[Any] = []
+        if name is not None:
+            sql += " WHERE name=?"
+            params.append(name)
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        with self.catalog.connect() as con:
+            return [dict(row) for row in con.execute(sql, params).fetchall()]
 
     def reload(self) -> None:
         self._packages = self._load_packages()
@@ -302,11 +349,28 @@ class SkillRegistry:
                 "actor=excluded.actor",
                 (name, package.digest, _utc_now(), safe_actor),
             )
+            self._record_approval_event(
+                con,
+                name,
+                package.digest,
+                "approved",
+                safe_actor,
+                f"approved digest {package.digest}",
+            )
         return package.digest
 
-    def revoke(self, name: str) -> bool:
+    def revoke(self, name: str, actor: str = "local") -> bool:
+        safe_actor = _no_secret("actor", actor)[:64] or "local"
         with self.catalog.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute("SELECT sha256 FROM skill_approvals WHERE name=?", (name,)).fetchone()
+            if row is None:
+                return False
+            digest = str(row["sha256"])
             cursor = con.execute("DELETE FROM skill_approvals WHERE name=?", (name,))
+            self._record_approval_event(
+                con, name, digest, "revoked", safe_actor, f"revoked digest {digest}"
+            )
         return int(cursor.rowcount) > 0
 
     def read_resource(self, uri: str) -> dict[str, Any]:
@@ -356,6 +420,34 @@ def build_skill_handlers(registry: SkillRegistry) -> dict[str, Any]:
         return {"skill": registry.get(name).to_dict(include_files=True)}
 
     return {"skills/list": list_skills, "skills/get": get_skill}
+
+
+def build_skill_approval_handlers(registry: SkillRegistry) -> dict[str, Any]:
+    """Return write handlers that pin or revoke a skill digest."""
+
+    def _name(args: Mapping[str, Any]) -> str:
+        name = args.get("name")
+        if not isinstance(name, str) or not name:
+            raise SkillError("name is required for skill approval")
+        return name
+
+    def _actor(args: Mapping[str, Any]) -> str:
+        actor = args.get("actor", "local")
+        if not isinstance(actor, str) or not actor:
+            return "local"
+        return actor
+
+    def approve(args: Mapping[str, Any]) -> dict[str, Any]:
+        name = _name(args)
+        digest = registry.approve(name, _actor(args))
+        return {"name": name, "sha256": digest, "approved": True}
+
+    def revoke(args: Mapping[str, Any]) -> dict[str, Any]:
+        name = _name(args)
+        removed = registry.revoke(name, _actor(args))
+        return {"name": name, "approved": False, "removed": removed}
+
+    return {"skills/approve": approve, "skills/revoke": revoke}
 
 
 def build_skill_resources(registry: SkillRegistry) -> dict[str, Any]:

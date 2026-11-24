@@ -35,6 +35,11 @@ simulator, and dependency-free telemetry with opt-in OTel and sandboxed MCP
 Apps resources. Verified with 425 tests at 90.43% coverage. Full list:
 [CHANGELOG.md](CHANGELOG.md).
 
+**Unreleased (Phase 5)** adds explicit approval writes over MCP behind a new
+default-deny `approvals` policy: `skills/approve`, `skills/revoke`,
+`tasks/approve` and scoped `tasks/list`, plus digest-bound audit events and
+read-only Apps action metadata. See [Phase 5](docs/phase5.md).
+
 ## Why
 
 For a solo dev or small team, you often want one local index of MCP servers you can query, diff, enrich, and publish — without running a heavy platform. `mcp-hub` stays local-first by default and scales to thousands of records with batch ingestion and indexed lookups.

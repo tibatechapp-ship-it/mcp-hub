@@ -49,6 +49,7 @@ __all__ = [
     "Phase3Runtime",
     "build_phase3",
     "build_tool_policy",
+    "build_approval_policy",
 ]
 
 PINNED_TOOL_MANIFEST_SHA256 = "6009656f1d4cc30fb9f079b8b6f2bdec01a04abfefc4099462f46998804d2857"
@@ -434,6 +435,8 @@ class Phase3Runtime:
     skill_resources: dict[str, Handler]
     resource_specs: tuple[ResourceSpec, ...]
     skill_policy: ToolPolicy
+    skill_approval_handlers: dict[str, Handler]
+    approval_policy: ToolPolicy
     task_store: TaskStore
     task_handlers: dict[str, Handler]
     persona_handler: Handler
@@ -486,6 +489,34 @@ def build_skill_policy() -> ToolPolicy:
     return enforce
 
 
+def build_approval_policy() -> ToolPolicy:
+    """Bind the ``approvals`` section of the policy to approval writes.
+
+    This section is deliberately separate from ``skills`` and ``tools``: a
+    permissive read policy must never grant authority to approve or revoke.
+    """
+
+    try:
+        gateway = policy_gateway.PolicyGateway.from_env()
+    except (policy_gateway.ConfigError, OSError, ValueError) as exc:
+        message = f"Policy configuration invalid: {exc}"
+
+        def deny_invalid(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+            _ = name, args
+            raise MCPError(POLICY_DENIED, message, {"policy": "invalid"})
+
+        return deny_invalid
+
+    def enforce(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+        try:
+            gateway.enforce_approval(name)
+        except policy_gateway.PolicyDenied as exc:
+            raise MCPError(POLICY_DENIED, exc.reason, {"rule": exc.rule}) from exc
+        return dict(args)
+
+    return enforce
+
+
 def build_task_handlers(store: TaskStore) -> dict[str, Handler]:
     def get(args: Mapping[str, Any]) -> Any:
         try:
@@ -531,10 +562,36 @@ def build_task_handlers(store: TaskStore) -> dict[str, Handler]:
         except (TaskError, ValueError) as exc:
             raise MCPError(TASK_DENIED, str(exc)) from exc
 
+    def approve(args: Mapping[str, Any]) -> Any:
+        try:
+            return store.approve(
+                _string(args, "task_id"),
+                _string(args, "tenant_id"),
+                _string(args, "session_id"),
+                actor=_string(args, "actor", "local"),
+                reason=_string(args, "reason", "approved by caller"),
+            )
+        except (TaskError, ValueError) as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+
+    def list_tasks(args: Mapping[str, Any]) -> Any:
+        try:
+            return {
+                "tasks": store.list(
+                    _string(args, "tenant_id"),
+                    _optional_string(args, "session_id"),
+                    limit=_integer(args, "limit", 50),
+                )
+            }
+        except (TaskError, ValueError) as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+
     return {
         "tasks/get": get,
         "tasks/update": update,
         "tasks/cancel": cancel,
+        "tasks/approve": approve,
+        "tasks/list": list_tasks,
     }
 
 
@@ -566,6 +623,7 @@ def build_phase3(catalog: Catalog, tool_policy: ToolPolicy) -> Phase3Runtime:
         registry = skills.SkillRegistry(catalog, initialize=False)
         store = TaskStore(catalog, initialize=False)
     skill_handlers = skills.build_skill_handlers(registry)
+    skill_approval_handlers = skills.build_skill_approval_handlers(registry)
     skill_resources = skills.build_skill_resources(registry)
     resource_specs = tuple(
         ResourceSpec(uri=uri, name=name, description="Read-only skill file", mime_type=mime)
@@ -577,6 +635,8 @@ def build_phase3(catalog: Catalog, tool_policy: ToolPolicy) -> Phase3Runtime:
         skill_resources=skill_resources,
         resource_specs=resource_specs,
         skill_policy=build_skill_policy(),
+        skill_approval_handlers=skill_approval_handlers,
+        approval_policy=build_approval_policy(),
         task_store=store,
         task_handlers=build_task_handlers(store),
         persona_handler=build_persona_handler(store, tool_policy),
