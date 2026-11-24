@@ -13,6 +13,7 @@ nav:
   - Install: install.md
   - CLI reference: cli.md
   - HTTP API: api.md
+  - Stateless MCP endpoint: mcp_stateless.md
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md

@@ -1,0 +1,337 @@
+"""Pinned, read-only tool contracts for the stateless MCP endpoint.
+
+The manifest digest below is the anti-rug-pull baseline: ``tools/list`` and
+``tools/call`` refuse to run if the live specs or handler names drift from it.
+Changing a tool description or schema therefore requires an explicit, reviewed
+manifest pin update instead of silently changing what a client already approved.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable, Mapping
+from typing import Any
+
+from . import catalog_query, doctor, provenance, taxonomy
+from .database import Catalog
+from .mcp_stateless import ResourceSpec, ToolSpec
+
+__all__ = [
+    "TOOL_SPECS",
+    "RESOURCE_SPECS",
+    "PINNED_TOOL_MANIFEST_SHA256",
+    "build_tools",
+    "build_resources",
+]
+
+Handler = Callable[[Mapping[str, Any]], Any]
+
+PINNED_TOOL_MANIFEST_SHA256 = "cac6b4d1da32ba6c5ee9164100b0eb47208d25abbb457ced7ba5016a0d9fb687"
+
+
+def _object(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {"type": "object", "properties": properties}
+    if required:
+        schema["required"] = required
+    return schema
+
+
+TOOL_SPECS: tuple[ToolSpec, ...] = (
+    ToolSpec(
+        name="search_servers",
+        description="Search the catalog by name, publisher, description, category, or topic.",
+        input_schema=_object(
+            {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "mode": {"type": "string", "enum": ["contains", "fts"]},
+            },
+            ["query"],
+        ),
+    ),
+    ToolSpec(
+        name="get_server",
+        description="Get full details for one server by its database ID.",
+        input_schema=_object({"server_id": {"type": "integer"}}, ["server_id"]),
+    ),
+    ToolSpec(
+        name="list_categories",
+        description="List all categories with their server counts.",
+        input_schema=_object({}),
+    ),
+    ToolSpec(
+        name="servers_by_category",
+        description="List servers in a specific category.",
+        input_schema=_object(
+            {
+                "category": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+            },
+            ["category"],
+        ),
+    ),
+    ToolSpec(
+        name="provenance_conflicts",
+        description="Detect fields where different sources disagree for a given server.",
+        input_schema=_object({"server_id": {"type": "integer"}}, ["server_id"]),
+    ),
+    ToolSpec(
+        name="provenance_events",
+        description="Show the audit trail (event history) for a server.",
+        input_schema=_object(
+            {
+                "server_id": {"type": "integer"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+            },
+            ["server_id"],
+        ),
+    ),
+    ToolSpec(
+        name="doctor_report",
+        description="Run read-only health checks on the catalog (no repairs).",
+        input_schema=_object({}),
+    ),
+    ToolSpec(
+        name="suggest_category",
+        description="Suggest categories for a server using the deterministic classifier.",
+        input_schema=_object({"server_id": {"type": "integer"}}, ["server_id"]),
+    ),
+    ToolSpec(
+        name="query_catalog",
+        description="Query the catalog by category, tag, task profile, access mode or readiness.",
+        input_schema=_object(
+            {
+                "kind": {"type": "string", "enum": ["all", "server", "tool"]},
+                "category": {"type": "string"},
+                "tag": {"type": "string"},
+                "profile": {"type": "string"},
+                "access_mode": {"type": "string", "enum": ["read-only", "read-write"]},
+                "ready_only": {"type": "boolean"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+            }
+        ),
+    ),
+)
+
+RESOURCE_SPECS: tuple[ResourceSpec, ...] = (
+    ResourceSpec(
+        uri="mcp-hub://stats",
+        name="mcp-hub statistics",
+        description="Live catalog statistics (JSON).",
+        mime_type="application/json",
+    ),
+)
+
+
+def _string(args: Mapping[str, Any], key: str, default: str = "") -> str:
+    value = args.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    return value
+
+
+def _integer(args: Mapping[str, Any], key: str, default: int) -> int:
+    value = args.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{key} must be an integer")
+    return value
+
+
+def _boolean(args: Mapping[str, Any], key: str, default: bool = False) -> bool:
+    value = args.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(f"{key} must be a boolean")
+    return value
+
+
+def _enriched(catalog: Catalog, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not rows:
+        return []
+    ids = [int(row["id"]) for row in rows]
+    placeholders = ",".join("?" for _ in ids)
+    with catalog.connect() as con:
+        extra_rows = con.execute(
+            "SELECT server_id, stars, forks, license, pushed_at, topics FROM enrichments "
+            f"WHERE server_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+    extra = {int(row["server_id"]): dict(row) for row in extra_rows}
+    merged: list[dict[str, Any]] = []
+    for row in rows:
+        data = dict(row)
+        enrichment = extra.get(int(data["id"]), {})
+        data["stars"] = int(enrichment.get("stars") or 0)
+        data["forks"] = int(enrichment.get("forks") or 0)
+        data["license"] = enrichment.get("license") or ""
+        data["pushed_at"] = enrichment.get("pushed_at") or ""
+        data["topics"] = enrichment.get("topics") or ""
+        merged.append(data)
+    return merged
+
+
+def _summary(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "publisher": row.get("publisher", ""),
+        "description": (row.get("description") or "")[:300],
+        "categories": row.get("categories", ""),
+        "stars": int(row.get("stars") or 0),
+        "popularity": int(row.get("popularity") or 0),
+        "endpoint_url": row.get("endpoint_url", ""),
+        "repository_url": row.get("repository_url", ""),
+    }
+
+
+def search_servers(
+    catalog: Catalog, query: str, limit: int = 20, mode: str = "contains"
+) -> list[dict[str, Any]]:
+    limit = max(1, min(limit, 100))
+    rows = catalog.search_fts(query, limit) if mode == "fts" else catalog.search(query, limit)
+    return [_summary(row) for row in _enriched(catalog, rows)]
+
+
+def get_server(catalog: Catalog, server_id: int) -> dict[str, Any]:
+    row = catalog.get_server(server_id)
+    if not row:
+        raise ValueError(f"server {server_id} not found")
+    merged = _enriched(catalog, [dict(row)])[0]
+    for key in ("created_at", "updated_at", "raw_name"):
+        merged.pop(key, None)
+    return merged
+
+
+def list_categories(catalog: Catalog) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {category["name"]: 0 for category in catalog.custom_categories()}
+    with catalog.connect() as con:
+        rows = con.execute(
+            "SELECT categories FROM servers WHERE archived=0 AND categories != ''"
+        ).fetchall()
+    for row in rows:
+        for category in (row["categories"] or "").split(","):
+            name = category.strip()
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return [{"category": name, "count": count} for name, count in ordered]
+
+
+def servers_by_category(catalog: Catalog, category: str, limit: int = 20) -> list[dict[str, Any]]:
+    limit = max(1, min(limit, 100))
+    name = (category or "").strip().lower()
+    if not name:
+        return []
+    with catalog.connect() as con:
+        rows = con.execute(
+            "SELECT * FROM servers WHERE archived=0 "
+            "AND (',' || categories || ',') LIKE ? "
+            "ORDER BY popularity DESC, id DESC LIMIT ?",
+            (f"%,{name},%", limit),
+        ).fetchall()
+    enriched = _enriched(catalog, [dict(row) for row in rows])
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "publisher": row.get("publisher", ""),
+            "stars": int(row.get("stars") or 0),
+            "description": (row.get("description") or "")[:200],
+        }
+        for row in enriched
+    ]
+
+
+def provenance_conflicts(catalog: Catalog, server_id: int) -> dict[str, Any]:
+    if not catalog.get_server(server_id):
+        raise ValueError(f"server {server_id} not found")
+    return provenance.field_conflicts(catalog, server_id)
+
+
+def provenance_events(catalog: Catalog, server_id: int, limit: int = 10) -> list[dict[str, Any]]:
+    if not catalog.get_server(server_id):
+        raise ValueError(f"server {server_id} not found")
+    return provenance.event_history(catalog, server_id, max(1, min(limit, 50)))
+
+
+def doctor_report(catalog: Catalog) -> dict[str, Any]:
+    return doctor.run(catalog)
+
+
+def suggest_category(catalog: Catalog, server_id: int) -> dict[str, Any]:
+    row = catalog.get_server(server_id)
+    if not row:
+        raise ValueError(f"server {server_id} not found")
+    custom = {item["name"]: item.get("terms", []) for item in catalog.custom_categories()}
+    suggested = taxonomy.classify(dict(row), custom_rules=custom)
+    return {
+        "server_id": server_id,
+        "name": row["name"],
+        "current_categories": row.get("categories", ""),
+        "suggested_categories": suggested,
+    }
+
+
+def query_catalog(args: Mapping[str, Any]) -> dict[str, Any]:
+    return catalog_query.query_catalog(
+        kind=_string(args, "kind", "all"),
+        category=_string(args, "category") or None,
+        tag=_string(args, "tag") or None,
+        profile=_string(args, "profile") or None,
+        access_mode=_string(args, "access_mode") or None,
+        ready_only=_boolean(args, "ready_only"),
+        limit=_integer(args, "limit", 50),
+    )
+
+
+def build_tools(catalog: Catalog) -> dict[str, Handler]:
+    """Bind the pinned tool contracts to read-only catalog handlers."""
+
+    def search(args: Mapping[str, Any]) -> Any:
+        return search_servers(
+            catalog,
+            _string(args, "query"),
+            _integer(args, "limit", 20),
+            _string(args, "mode", "contains"),
+        )
+
+    def get(args: Mapping[str, Any]) -> Any:
+        return get_server(catalog, _integer(args, "server_id", 0))
+
+    def categories(_: Mapping[str, Any]) -> Any:
+        return list_categories(catalog)
+
+    def by_category(args: Mapping[str, Any]) -> Any:
+        return servers_by_category(catalog, _string(args, "category"), _integer(args, "limit", 20))
+
+    def conflicts(args: Mapping[str, Any]) -> Any:
+        return provenance_conflicts(catalog, _integer(args, "server_id", 0))
+
+    def events(args: Mapping[str, Any]) -> Any:
+        return provenance_events(
+            catalog, _integer(args, "server_id", 0), _integer(args, "limit", 10)
+        )
+
+    def doctor_handler(_: Mapping[str, Any]) -> Any:
+        return doctor_report(catalog)
+
+    def suggest(args: Mapping[str, Any]) -> Any:
+        return suggest_category(catalog, _integer(args, "server_id", 0))
+
+    return {
+        "search_servers": search,
+        "get_server": get,
+        "list_categories": categories,
+        "servers_by_category": by_category,
+        "provenance_conflicts": conflicts,
+        "provenance_events": events,
+        "doctor_report": doctor_handler,
+        "suggest_category": suggest,
+        "query_catalog": query_catalog,
+    }
+
+
+def build_resources(catalog: Catalog) -> dict[str, Handler]:
+    def stats(_: Mapping[str, Any]) -> str:
+        return json.dumps(catalog.stats(), ensure_ascii=False, sort_keys=True)
+
+    return {"mcp-hub://stats": stats}

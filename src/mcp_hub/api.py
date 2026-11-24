@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from . import __version__, alerts, saved_searches, scheduler, taxonomy
+from . import __version__, alerts, catalog_tools, mcp_stateless, saved_searches, scheduler, taxonomy
 from . import provenance as _provenance
 from .auth import add_auth_middleware
 from .dashboard import HTML as DASHBOARD_HTML
@@ -37,6 +38,8 @@ def create_app(
     db_path: str | None = None, catalog: Catalog | None = None, api_key: str | None = None
 ):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
+    mcp_tools = catalog_tools.build_tools(catalog)
+    mcp_resources = catalog_tools.build_resources(catalog)
     app = FastAPI(title="mcp-hub", version=__version__, debug=False)
 
     # Middleware added later wraps earlier ones. Build inner->outer so the
@@ -51,7 +54,14 @@ def create_app(
         CORSMiddleware,
         allow_origins=_cors_origins(),
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["X-API-Key", "Authorization", "Content-Type"],
+        allow_headers=[
+            "X-API-Key",
+            "Authorization",
+            "Content-Type",
+            "MCP-Protocol-Version",
+            "Mcp-Method",
+            "Mcp-Name",
+        ],
         allow_credentials=False,
         max_age=600,
     )
@@ -248,5 +258,31 @@ def create_app(
             raise HTTPException(status_code=400, detail="target required")
         alert_id = alerts.add_alert(catalog, channel, target, query)
         return {"id": alert_id}
+
+    @app.post("/mcp")
+    async def mcp_endpoint(request: Request):
+        """Stateless MCP 2026-07-28 JSON-RPC endpoint."""
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            status, payload = (
+                400,
+                mcp_stateless.jsonrpc_error(None, mcp_stateless.PARSE_ERROR, "Parse error"),
+            )
+        else:
+            status, payload = mcp_stateless.handle(
+                body,
+                dict(request.headers),
+                tools=mcp_tools,
+                tool_specs=catalog_tools.TOOL_SPECS,
+                expected_manifest_hash=catalog_tools.PINNED_TOOL_MANIFEST_SHA256,
+                resource_specs=catalog_tools.RESOURCE_SPECS,
+                resources=mcp_resources,
+                server_info={"name": "mcp-hub", "version": __version__},
+                instructions="Local MCP catalog. All tools are read-only.",
+            )
+        if payload is None:
+            return Response(status_code=status)
+        return JSONResponse(status_code=status, content=payload)
 
     return app
