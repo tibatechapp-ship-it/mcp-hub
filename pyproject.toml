@@ -63,7 +63,6 @@ packages = ["src/mcp_hub"]
 [tool.hatch.build.targets.wheel.force-include]
 "registry/mcp_servers.json" = "mcp_hub/registry/mcp_servers.json"
 "profiles" = "mcp_hub/profiles"
-"src/mcp_hub/skills" = "mcp_hub/skills"
 
 [tool.hatch.build.targets.sdist]
 include = [
