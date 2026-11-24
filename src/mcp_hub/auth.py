@@ -16,9 +16,12 @@ _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _OPEN_PATHS = frozenset({"/api/health", "/"})
 
 # /metrics carries catalog counts, so it is key-gated like the API even though
-# it does not live under /api/.
+# it does not live under /api/. The generated schema and docs are also hidden
+# when a key is configured: they describe every route and parameter.
 _PROTECTED_PREFIXES = ("/api/",)
-_PROTECTED_EXACT = frozenset({"/metrics"})
+_PROTECTED_EXACT = frozenset(
+    {"/metrics", "/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"}
+)
 
 
 def _is_protected(path: str) -> bool:

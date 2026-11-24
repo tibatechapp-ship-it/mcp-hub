@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from mcp_hub import backup as backup_mod
 from mcp_hub.backup import BackupError, backup, restore, verify_backup
 from mcp_hub.database import Catalog
 from mcp_hub.models import Server
@@ -148,6 +149,29 @@ def test_restore_leaves_the_target_untouched_on_a_bad_checksum(tmp_path):
     with pytest.raises(BackupError):
         restore(dest, db, force=True)
     assert db.read_bytes() == before
+
+
+def test_restore_interruption_never_leaves_a_half_written_database(tmp_path, monkeypatch):
+    db = tmp_path / "cat.sqlite3"
+    _seed(db)
+    snapshot = tmp_path / "b.sqlite3"
+    backup(db, snapshot)
+    before = db.read_bytes()
+
+    real_replace = backup_mod.os.replace
+
+    def interrupted(src, dst):
+        if ".restore-" in str(src):
+            raise OSError("simulated interruption")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(backup_mod.os, "replace", interrupted)
+    with pytest.raises(OSError, match="interruption"):
+        restore(snapshot, db, force=True)
+
+    assert not db.exists()
+    assert (tmp_path / "cat.sqlite3.pre-restore").read_bytes() == before
+    assert not list(tmp_path.glob(".cat.sqlite3.restore-*"))
 
 
 # --- migrations ------------------------------------------------------------

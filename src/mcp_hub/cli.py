@@ -173,7 +173,9 @@ def cmd_search(args):
 
 def cmd_enrich_github(args):
     db = _db(args)
-    res = github_enrich.enrich_catalog(db, limit=int(args.limit), token=args.token)
+    # No CLI token: passing secrets on the command line leaks them to `ps` and
+    # shell history. github_enrich.enrich_catalog reads GITHUB_TOKEN itself.
+    res = github_enrich.enrich_catalog(db, limit=int(args.limit))
     print(json.dumps(res, ensure_ascii=False, indent=2))
 
 
@@ -343,9 +345,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--fts", action="store_true")
     s.set_defaults(func=cmd_search)
 
-    s = sub.add_parser("enrich-github", help="Enrich servers from GitHub")
+    s = sub.add_parser(
+        "enrich-github", help="Enrich servers from GitHub (uses GITHUB_TOKEN from the environment)"
+    )
     s.add_argument("--limit", type=int, default=100)
-    s.add_argument("--token", default=None)
     s.set_defaults(func=cmd_enrich_github)
 
     s = sub.add_parser("classify", help="Classify servers into categories")

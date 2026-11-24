@@ -235,7 +235,7 @@ def test_progress_callback_writes_to_stderr(capsys):
     assert capsys.readouterr().err.strip() == "progress: 2/5"
 
 
-def test_enrich_github_passes_limit_and_token(tmp_path, capsys, monkeypatch):
+def test_enrich_github_uses_environment_token_and_rejects_cli_token(tmp_path, capsys, monkeypatch):
     seen = {}
 
     def fake_enrich(db, limit=100, token=None):
@@ -244,10 +244,15 @@ def test_enrich_github_passes_limit_and_token(tmp_path, capsys, monkeypatch):
         return {"enriched": 0}
 
     monkeypatch.setattr(github_enrich, "enrich_catalog", fake_enrich)
+    monkeypatch.setenv("GITHUB_TOKEN", "env-token")
     db_path = tmp_path / "db.sqlite3"
 
-    assert main(["--db", str(db_path), "enrich-github", "--limit", "3", "--token", "t0k"]) == 0
-    assert seen == {"limit": 3, "token": "t0k"}
+    assert main(["--db", str(db_path), "enrich-github", "--limit", "3"]) == 0
+    assert seen == {"limit": 3, "token": None}
+    assert capsys.readouterr().err == ""
+
+    with pytest.raises(SystemExit):
+        main(["--db", str(db_path), "enrich-github", "--token", "cli-token"])
 
 
 def test_classify_offline(tmp_path, capsys):

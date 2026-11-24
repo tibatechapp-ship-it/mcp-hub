@@ -2,8 +2,9 @@
 
 `check_endpoint` is a pure function: it never raises and never contacts a
 non-public address. Every request goes through :func:`mcp_hub.safe_fetch.safe_request`,
-so a catalog entry pointing at cloud metadata or ``127.0.0.1`` is reported as
-blocked instead of being fetched.
+which validates the destination and pins the connection to the verified IP, so
+a catalog entry pointing at cloud metadata or ``127.0.0.1`` is reported as
+blocked instead of being fetched, even if DNS changes after validation.
 
 Persisting the result and the ``mcp-hub health`` command land in a later
 release — this module deliberately stays storage-free.

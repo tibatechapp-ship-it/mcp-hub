@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import ssl
 import urllib.error
 
 import pytest
@@ -273,3 +274,77 @@ def test_health_check_treats_head_refusal_as_up(monkeypatch):
     result = health.check_endpoint("https://1.1.1.1/")
     assert result["status"] == "up"
     assert "405" in result["detail"]
+
+
+# ── DNS rebinding / pinned connection (v1.4.1 hardening) ────────────────────
+def test_validated_target_resolves_once_and_returns_pinned_ip(monkeypatch):
+    calls: list[str] = []
+
+    def fake_dns_once(host, port, **kwargs):
+        calls.append(host)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_dns_once)
+    host, port, pinned_ip = safe_fetch._validated_target("https://example.com/")
+    assert (host, port, pinned_ip) == ("example.com", 443, "93.184.216.34")
+    assert calls == ["example.com"]
+
+
+def test_pinned_connection_uses_verified_ip_and_original_sni(monkeypatch):
+    calls: dict[str, object] = {}
+
+    class DummySocket:
+        def setsockopt(self, *args):
+            return None
+
+    class DummyContext:
+        check_hostname = True
+        verify_mode = ssl.CERT_REQUIRED
+
+        def wrap_socket(self, sock, server_hostname=None):
+            calls["sni"] = server_hostname
+            return sock
+
+    def fake_create_connection(address, timeout=None, source_address=None):
+        calls["address"] = address
+        return DummySocket()
+
+    monkeypatch.setattr(socket, "create_connection", fake_create_connection)
+    conn = safe_fetch._PinnedHTTPSConnection(
+        "example.com",
+        443,
+        pinned_ip="93.184.216.34",
+        timeout=1,
+        context=DummyContext(),
+        check_hostname=True,
+    )
+    conn.connect()
+
+    assert calls["address"] == ("93.184.216.34", 443)
+    assert calls["sni"] == "example.com"
+
+
+def test_response_headers_can_be_captured(monkeypatch):
+    class FakeResponse:
+        status = 200
+        headers = {"ETag": 'W/"upstream-7"'}
+
+        def read(self, n=-1):
+            return b"ok"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class FakeOpener:
+        def open(self, request, timeout=None):
+            return FakeResponse()
+
+    monkeypatch.setattr(safe_fetch.urllib.request, "build_opener", lambda *a, **kw: FakeOpener())
+    seen: dict[str, str] = {}
+    status, body = safe_fetch.safe_request("https://1.1.1.1/", response_headers=seen)
+
+    assert (status, body) == (200, b"ok")
+    assert seen["ETag"] == 'W/"upstream-7"'

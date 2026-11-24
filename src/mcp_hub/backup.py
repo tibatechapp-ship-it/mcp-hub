@@ -12,7 +12,9 @@ Layout: ``<path>`` (the database) and ``<path>.sha256`` (``<hex>  <filename>``).
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
+import tempfile
 from pathlib import Path
 
 __all__ = ["backup", "restore", "verify_backup", "BackupError"]
@@ -101,9 +103,51 @@ def verify_backup(path: str | Path) -> str:
     return recorded
 
 
+def _stage_copy(source: Path, directory: Path, target_name: str, checksum: str) -> Path:
+    """Copy and verify into a temp file beside the target, then return its path."""
+    staged: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", prefix=f".{target_name}.restore-", dir=directory, delete=False
+        ) as handle:
+            staged = Path(handle.name)
+            with source.open("rb") as src:
+                for block in iter(lambda: src.read(1 << 20), b""):
+                    handle.write(block)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        if _checksum(staged) != checksum:
+            raise BackupError("staged restore does not match the backup checksum")
+        return staged
+    except Exception:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
+        raise
+
+
+def _fsync_directory(path: Path) -> None:
+    """Make the rename durable; some filesystems refuse directory fsync."""
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+
+
 def restore(backup_path: str | Path, db_path: str | Path, force: bool = False) -> dict[str, object]:
     """
     Replace `db_path` with the backup, after verifying its checksum.
+
+    The new bytes are staged in a temp file beside the target, fsynced and
+    checksum-verified before the current database is touched. The final
+    ``os.replace`` is atomic: an interruption can leave the previous database
+    under ``<db>.pre-restore``, but never a half-written live file.
 
     The current database is moved aside to ``<db>.pre-restore`` instead of
     being deleted — if the restore turns out to be the wrong file, the previous
@@ -114,30 +158,29 @@ def restore(backup_path: str | Path, db_path: str | Path, force: bool = False) -
     checksum = verify_backup(source)
     target.parent.mkdir(parents=True, exist_ok=True)
 
+    staged_path = _stage_copy(source, target.parent, target.name, checksum)
+    staged: Path | None = staged_path
     previous: Path | None = None
-    if target.exists():
-        if not force:
-            raise BackupError(
-                f"{target} already exists; pass force=True to replace it "
-                f"(the current file is kept as {target}.pre-restore)"
-            )
-        previous = target.with_name(target.name + ".pre-restore")
-        _discard(previous)
-        # The WAL and shared-memory files belong to the database being moved
-        # aside. Leaving them behind would hand the restored file a stale write
-        # log, which is how a "successful" restore turns into a corrupt DB.
-        _move_family(target, previous)
+    try:
+        if target.exists():
+            if not force:
+                raise BackupError(
+                    f"{target} already exists; pass force=True to replace it "
+                    f"(the current file is kept as {target}.pre-restore)"
+                )
+            previous = target.with_name(target.name + ".pre-restore")
+            _discard(previous)
+            # The WAL and shared-memory files belong to the database being moved
+            # aside. Leaving them behind would hand the restored file a stale
+            # write log, which is how a "successful" restore corrupts a DB.
+            _move_family(target, previous)
 
-    # Copy rather than move: the backup stays usable for a second attempt.
-    with source.open("rb") as src, target.open("wb") as dst:
-        for block in iter(lambda: src.read(1 << 20), b""):
-            dst.write(block)
-
-    if _checksum(target) != checksum:
-        if previous is not None:
-            _discard(target)
-            _move_family(previous, target)
-        raise BackupError("restored file does not match the backup checksum; rolled back")
+        os.replace(staged_path, target)
+        staged = None  # ownership transferred
+        _fsync_directory(target.parent)
+    finally:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
 
     return {
         "path": str(target),

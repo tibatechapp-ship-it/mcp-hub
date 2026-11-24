@@ -185,7 +185,7 @@ def test_refresh_from_upstream_updates_cache(monkeypatch, tmp_path) -> None:
 def test_refresh_handles_conditional_response(monkeypatch, tmp_path) -> None:
     registry = {"schema_version": 1, "mcpServers": {"x": {"tools": []}}}
     cache = tmp_path / "cache.json"
-    live_sync.save_cache(cache, registry, source="upstream", digest="abc123")
+    live_sync.save_cache(cache, registry, source="upstream", digest="abc123", etag='W/"upstream-7"')
     seen: dict[str, str] = {}
 
     def fake_request(url, **kwargs):
@@ -196,4 +196,33 @@ def test_refresh_handles_conditional_response(monkeypatch, tmp_path) -> None:
     result = live_sync.refresh_from_upstream(cache, force=True)
     assert result.status == "not-modified"
     assert result.registry == registry
-    assert seen.get("If-None-Match") == "abc123"
+    assert seen.get("If-None-Match") == 'W/"upstream-7"'
+    assert seen.get("If-None-Match") != "abc123"
+
+
+def test_refresh_stores_and_reuses_upstream_etag(monkeypatch, tmp_path) -> None:
+    registry = {"schema_version": 1, "mcpServers": {"x": {"tools": []}}}
+    body = json.dumps(registry).encode("utf-8")
+    cache = tmp_path / "cache.json"
+
+    def fake_200(url, **kwargs):
+        rh = kwargs.get("response_headers")
+        if rh is not None:
+            rh["ETag"] = 'W/"v2"'
+        return 200, body
+
+    monkeypatch.setattr(live_sync, "safe_request", fake_200)
+    first = live_sync.refresh_from_upstream(cache, force=True)
+    assert first.status == "updated"
+    assert live_sync.load_cache(cache)["etag"] == 'W/"v2"'
+
+    seen: dict[str, str] = {}
+
+    def fake_304(url, **kwargs):
+        seen.update(kwargs.get("headers", {}))
+        return 304, b""
+
+    monkeypatch.setattr(live_sync, "safe_request", fake_304)
+    second = live_sync.refresh_from_upstream(cache, force=True)
+    assert second.status == "not-modified"
+    assert seen["If-None-Match"] == 'W/"v2"'
