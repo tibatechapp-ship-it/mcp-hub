@@ -15,13 +15,21 @@ read-only nature of the Apps UI.
 
 ## What Path 1 adds
 
-### Input normalization
+### Text normalization
 
-`mcp_hub.arabic_runtime.normalize_arabic_text()` converts Arabic-Indic digits
-(`٠-٩`) and Extended Arabic-Indic digits (`۰-۹`) to ASCII, removes tatweel,
-folds alef/ya variants and collapses whitespace. The approval CLI applies it
-to skill names, task ids, tenant/session ids, actors, reasons and `route-task`
-input. ASCII inputs are unchanged.
+Two layers are deliberately separate:
+
+- `normalize_arabic_text()` is for display and free-text queries. It converts
+  Arabic-Indic digits (`٠-٩`) and Extended Arabic-Indic digits (`۰-۹`) to
+  ASCII, removes tatweel, folds alef/ya variants and collapses whitespace.
+- `normalize_for_match()` is the single shared matcher used by
+  `semantic_router` and `catalog_query`. It also strips harakat and folds
+  ta-marbuta to haa; `strip_al=True` drops a leading definite article.
+
+Digit conversion applies only to query/counter text. `task_id`, `tenant_id`,
+`session_id`, skill names, actors, reasons and audit text keep their original
+bytes. A CLI call with Indic digits in an id fails with exit code `2` instead of
+silently rewriting the id. ASCII inputs are unchanged.
 
 ### Arabic diagnostics
 
@@ -33,6 +41,10 @@ machine fields:
 {"command":"skill-approve","status":"failed","error":"...","exit_code":1,"message_ar":"غير موجود: ..."}
 ```
 
+Arabic diagnostics also recognize policy denial (`-10002`), task denial
+(`-10003`), skill fingerprint/digest mismatch and missing permission, mapping
+them to stable phrases such as `رفضت السياسة العملية` and `عدم تطابق البصمة`.
+
 `--json` stays compact, errors stay on stderr, and exit codes remain `0`, `1`
 and `2`. `message_ar` is additive; clients that do not understand it can ignore
 it.
@@ -42,7 +54,9 @@ it.
 The two allowlisted `ui://` resources accept `params.lang = "ar"` or
 `MCP_HUB_UI_LANG=ar`. The HTML gets `lang="ar" dir="rtl"`, Arabic headings and
 a strict re-computed script hash CSP. The JSON fallback reports `lang` and
-`dir`. The UI is still read-only and exposes `available_actions` metadata only.
+`dir`. The UI is still read-only: it renders an explicit `للقراءة فقط` notice,
+never emits buttons or write-method `postMessage` calls, and exposes
+`available_actions` metadata only.
 
 ## Path 2 integration contract
 
@@ -62,7 +76,8 @@ implementation. It can call either transport:
 
 ### CLI transport
 
-Use `--json` and branch on `exit_code`:
+Use `--json` and branch on `exit_code`. Pass ids, actors and reasons exactly as
+stored; the translator must not normalize them.
 
 ```sh
 mcp-hub --db catalog.sqlite3 task-approve "$TASK" \

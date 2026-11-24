@@ -13,6 +13,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from .arabic_runtime import normalize_for_match
 from .catalog_query import iter_entries, load_registry
 from .mcp_stateless import ToolSpec
 
@@ -27,8 +28,6 @@ _ARABIC = re.compile(r"[\u0600-\u06ff]")
 _LATIN = re.compile(r"[A-Za-z]")
 _ARABIC_TOKENS = re.compile(r"[\u0600-\u06ff]+")
 _LATIN_TOKENS = re.compile(r"[A-Za-z][A-Za-z0-9_+\-]*")
-_TATWEEL = "\u0640"
-_DIACRITICS = re.compile(r"[\u064b-\u0652]")
 
 _STOPWORDS = frozenset(
     {
@@ -130,11 +129,8 @@ def detect_language(text: str) -> str:
 
 
 def _normalize(token: str) -> str:
-    value = _DIACRITICS.sub("", token.replace(_TATWEEL, "")).lower()
-    for source, target in (("أ", "ا"), ("إ", "ا"), ("آ", "ا"), ("ى", "ي"), ("ة", "ه")):
-        value = value.replace(source, target)
-    if len(value) > 4 and value.startswith("ال"):
-        value = value[2:]
+    """Delegate Arabic folding to the single shared matcher."""
+    value = normalize_for_match(token, strip_al=True)
     if value in _STOPWORDS:
         return ""
     return value

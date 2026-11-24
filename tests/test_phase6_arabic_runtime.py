@@ -63,13 +63,18 @@ def test_arabic_cli_diagnostics_are_stable(tmp_path, capsys, monkeypatch) -> Non
     assert "limit" in failed["error"]
 
 
-def test_cli_normalizes_indic_digits_in_scoped_ids(tmp_path, capsys) -> None:
+def test_cli_preserves_identifiers_and_rejects_indic_digits(tmp_path, capsys) -> None:
     db = str(tmp_path / "catalog.sqlite3")
     task = TaskStore(Catalog(db)).create("t1", "s1", "tool_chain")
 
-    assert main(["--db", db, "task-list", "--tenant", "t١", "--session", "s١", "--json"]) == EXIT_OK
+    assert main(["--db", db, "task-list", "--tenant", "t1", "--session", "s1", "--json"]) == EXIT_OK
     listed = json.loads(capsys.readouterr().out)
     assert any(item["task_id"] == task["task_id"] for item in listed)
+
+    assert main(["--db", db, "task-list", "--tenant", "t١", "--json"]) == EXIT_BAD_INPUT
+    failed = json.loads(capsys.readouterr().err)
+    assert failed["command"] == "task-list"
+    assert "tenant_id" in failed["error"]
 
 
 def test_arabic_app_ui_is_rtl_read_only_and_hash_locked(tmp_path, monkeypatch) -> None:
@@ -85,6 +90,7 @@ def test_arabic_app_ui_is_rtl_read_only_and_hash_locked(tmp_path, monkeypatch) -
     assert '<html lang="ar" dir="rtl">' in page
     assert "مراجعة الاعتمادات" in page
     assert "تطبيق MCP للقراءة فقط" in page
+    assert "لا أوامر تنفيذ في هذه الواجهة" in page
     assert "'sha256-" in html_mod.unescape(page)
 
     fallback = json.loads(arabic["contents"][1]["text"])

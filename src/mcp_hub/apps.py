@@ -113,12 +113,14 @@ def _inner_script(request_method: str, lang: str) -> str:
             "no_response": "لا توجد استجابة من المضيف.",
             "error": "خطأ ",
             "waiting": "لم يجب المضيف؛ عرض اللقطة المضمنة.",
+            "read_only": "للقراءة فقط؛ لا أوامر تنفيذ في هذه الواجهة.",
         }
         if lang == "ar"
         else {
             "no_response": "No response from host.",
             "error": "Error ",
             "waiting": "Host did not answer; showing embedded snapshot.",
+            "read_only": "Read-only; this UI exposes no write commands.",
         }
     )
     labels_json = _safe_json(labels)
@@ -134,11 +136,12 @@ def _inner_script(request_method: str, lang: str) -> str:
     }}
     var result = message.result || {{}};
     var items = result.skills || result.tools || [];
+    out.textContent = labels.read_only + '\\n';
     if (items.length) {{
       var names = items.map(function (item) {{ return item.name || item.uri || ''; }});
-      out.textContent = names.join('\\n');
+      out.textContent += names.join('\\n');
     }} else {{
-      out.textContent = JSON.stringify(result, null, 2);
+      out.textContent += JSON.stringify(result, null, 2);
     }}
   }}
   window.addEventListener('message', function (event) {{
