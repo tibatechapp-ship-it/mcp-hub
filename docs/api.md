@@ -43,6 +43,14 @@ compared (no early exit), so timing does not reveal which key matched.
 | GET/POST | `/api/alerts` | Webhook channels |
 | GET | `/metrics` | Prometheus text (API key required when one is configured) |
 
+`POST /mcp` also accepts the Phase 3 JSON-RPC methods `skills/list`,
+`skills/get`, `tasks/get`, `tasks/update`, `tasks/cancel` and
+`persona/simulate`. They use the same mirrored-header rules as
+[Stateless MCP endpoint](mcp_stateless.md); `skills/get`, task methods and
+`persona/simulate` mirror `name`, `task_id` and `scenario` respectively in
+`Mcp-Name`. Skill reads are governed by the policy's `skills` section, while
+tool execution stays under `tools`; see [Phase 3](phase3.md).
+
 ## Paging
 
 `limit` is 1–200 (default 50), `offset` ≥ 0. The response is:

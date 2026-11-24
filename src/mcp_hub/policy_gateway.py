@@ -39,8 +39,9 @@ ENV_POLICY_FILE = "MCP_HUB_POLICY_FILE"
 ENV_POLICY_JSON = "MCP_HUB_POLICY_JSON"
 ENV_AUDIT_PATH = "MCP_HUB_POLICY_AUDIT"
 
-_SUPPORTED_TOP_LEVEL = frozenset({"version", "name", "tools", "privacy", "audit"})
+_SUPPORTED_TOP_LEVEL = frozenset({"version", "name", "tools", "skills", "privacy", "audit"})
 _SUPPORTED_TOOLS = frozenset({"allow", "deny"})
+_SUPPORTED_SKILLS = frozenset({"allow", "deny"})
 _SUPPORTED_PRIVACY = frozenset({"redact", "custom"})
 _SUPPORTED_AUDIT = frozenset({"enabled", "path"})
 
@@ -84,6 +85,7 @@ def builtin_default_policy() -> dict[str, Any]:
         "version": 1,
         "name": "default",
         "tools": {"allow": ["*"], "deny": []},
+        "skills": {"allow": ["*"], "deny": []},
         "privacy": {"redact": ["secret"]},
         "audit": {"enabled": False},
     }
@@ -110,6 +112,7 @@ def _validate(doc: dict[str, Any]) -> None:
     if version != 1:
         raise ConfigError(f"unsupported policy schema version: {version!r} (expected 1)")
     _check_section(doc, "tools", _SUPPORTED_TOOLS)
+    _check_section(doc, "skills", _SUPPORTED_SKILLS)
     _check_section(doc, "privacy", _SUPPORTED_PRIVACY)
     _check_section(doc, "audit", _SUPPORTED_AUDIT)
 
@@ -121,6 +124,8 @@ class PolicyGateway:
     name: str = "default"
     tool_allow: tuple[str, ...] = ("*",)
     tool_deny: tuple[str, ...] = ()
+    skill_allow: tuple[str, ...] = ("*",)
+    skill_deny: tuple[str, ...] = ()
     redact_names: tuple[str, ...] = ("secret",)
     custom_rules: tuple[tuple[re.Pattern[str], str], ...] = ()
     audit_enabled: bool = False
@@ -138,6 +143,13 @@ class PolicyGateway:
             raise ConfigError("tools.allow must be a list of strings")
         if not isinstance(deny, list) or not all(isinstance(x, str) for x in deny):
             raise ConfigError("tools.deny must be a list of strings")
+        skills = doc.get("skills") or {}
+        skill_allow = skills.get("allow", ["*"])
+        skill_deny = skills.get("deny", [])
+        if not isinstance(skill_allow, list) or not all(isinstance(x, str) for x in skill_allow):
+            raise ConfigError("skills.allow must be a list of strings")
+        if not isinstance(skill_deny, list) or not all(isinstance(x, str) for x in skill_deny):
+            raise ConfigError("skills.deny must be a list of strings")
         names = privacy.get("redact") or ["secret"]
         if not isinstance(names, list) or not all(isinstance(x, str) for x in names):
             raise ConfigError("privacy.redact must be a list of strings")
@@ -164,6 +176,8 @@ class PolicyGateway:
             name=str(doc.get("name") or "default"),
             tool_allow=tuple(allow) or ("*",),
             tool_deny=tuple(deny),
+            skill_allow=tuple(skill_allow) or ("*",),
+            skill_deny=tuple(skill_deny),
             redact_names=tuple(names),
             custom_rules=tuple(custom),
             audit_enabled=enabled,
@@ -186,6 +200,17 @@ class PolicyGateway:
         if any(fnmatch.fnmatchcase(name, pattern) for pattern in self.tool_deny):
             return False
         return any(fnmatch.fnmatchcase(name, pattern) for pattern in self.tool_allow)
+
+    def allows_skill(self, name: str) -> bool:
+        """Skill reading is governed separately from tool execution."""
+
+        if any(fnmatch.fnmatchcase(name, pattern) for pattern in self.skill_deny):
+            return False
+        return any(fnmatch.fnmatchcase(name, pattern) for pattern in self.skill_allow)
+
+    def enforce_skill(self, name: str) -> None:
+        if not self.allows_skill(name):
+            raise PolicyDenied(f"Skill blocked by policy: {name}", f"skills.deny:{name}")
 
     def _scrub(self, value: Any, applied: list[str]) -> Any:
         if isinstance(value, str):
@@ -252,6 +277,8 @@ class PolicyGateway:
             "policy": self.name,
             "tools_allow": list(self.tool_allow),
             "tools_deny": list(self.tool_deny),
+            "skills_allow": list(self.skill_allow),
+            "skills_deny": list(self.skill_deny),
             "redactions": list(self.redact_names),
             "custom_redaction_rules": len(self.custom_rules),
             "audit_enabled": self.audit_enabled,

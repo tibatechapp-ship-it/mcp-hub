@@ -15,6 +15,7 @@ nav:
   - HTTP API: api.md
   - Stateless MCP endpoint: mcp_stateless.md
   - Policy, routing and description quality: phase2.md
+  - Skills, tasks and persona: phase3.md
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md
