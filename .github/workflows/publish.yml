@@ -60,11 +60,17 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  publish:
+  # PyPI publishing is DEFERRED (user decision, 2026-11-24): there is no PyPI
+  # account / Trusted Publisher configured yet. The job is kept intact but
+  # disabled so a v* tag can ship on GitHub without a red publish job.
+  # Wheel + sdist are attached to the GitHub Release by release.yml instead.
+  # To re-enable: register the pending publisher on PyPI
+  #   project mcp-hub, owner tibatechapp-ship-it,
+  #   workflow publish.yml, environment pypi
+  # then remove the `if: false` line below.
+  publish-pypi-deferred:
+    if: false
     needs: build
-    # A tag push or a published release publishes; workflow_dispatch is a
-    # build dry-run. A tag can only be pushed once, so this cannot double-publish.
-    if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -78,5 +84,5 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (DEFERRED — enable only after Trusted Publisher exists)
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
