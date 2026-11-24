@@ -1,0 +1,44 @@
+{
+  "profile_id": "docs-localization",
+  "title_ar": "التوثيق والتعريب",
+  "description_ar": "تحويل المحتوى وترجمته وربطه بمصادر العربية مع السماح بتعديل ملفات التوثيق فقط.",
+  "default_access_mode": "read-write",
+  "allowed_categories": [
+    "arabic",
+    "catalog",
+    "conversion",
+    "search"
+  ],
+  "preferred_tags": [
+    "localization",
+    "rag-web-search",
+    "execution"
+  ],
+  "steps": [
+    {
+      "step_id": "collect_sources",
+      "title_ar": "جمع المصادر",
+      "tool_tags": [
+        "rag-web-search"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "localize",
+      "title_ar": "التعريب والتحويل",
+      "tool_tags": [
+        "localization",
+        "execution"
+      ],
+      "access_mode": "read-write"
+    },
+    {
+      "step_id": "verify_terms",
+      "title_ar": "التحقق من المصطلحات",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    }
+  ]
+}

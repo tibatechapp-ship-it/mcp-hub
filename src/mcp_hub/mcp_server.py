@@ -21,7 +21,7 @@ try:  # mcp >= 2 renamed FastMCP to MCPServer
 except ImportError:  # pragma: no cover - exercised by the mcp 1.x CI lane
     from mcp.server.fastmcp import FastMCP as _MCPApp
 
-from . import doctor, provenance, taxonomy
+from . import arabic_runtime, catalog_query, doctor, provenance, taxonomy
 from .database import Catalog
 
 mcp = _MCPApp(
@@ -184,6 +184,28 @@ def suggest_category(server_id: int) -> dict:
     }
 
 
+@mcp.tool()
+def query_catalog(
+    kind: str = "all",
+    category: str = "",
+    tag: str = "",
+    profile: str = "",
+    access_mode: str = "",
+    ready_only: bool = False,
+    limit: int = 50,
+) -> dict:
+    """Query the bundled Arabic catalog by category, tag, task profile, access mode or readiness."""
+    return catalog_query.query_catalog(
+        kind=kind,
+        category=category or None,
+        tag=tag or None,
+        profile=profile or None,
+        access_mode=access_mode or None,
+        ready_only=ready_only,
+        limit=limit,
+    )
+
+
 # -- resource ---------------------------------------------------------------
 @mcp.resource("mcp-hub://stats")
 def stats_resource() -> str:
@@ -191,8 +213,13 @@ def stats_resource() -> str:
     return json.dumps(_catalog.stats(), ensure_ascii=False, indent=2)
 
 
+# -- runtime localization (opt-in; fail-open) -------------------------------
+arabic_runtime.install(mcp)
+
+
 # -- entry point ------------------------------------------------------------
 def main() -> None:
+    arabic_runtime.install(mcp)
     mcp.run()
 
 

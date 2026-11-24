@@ -24,6 +24,9 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
 - **Docs:** <https://tibatechapp-ship-it.github.io/mcp-hub/> (source in [`docs/`](docs/index.md))
+- **العربية:** [فهرس خوادم وأدوات MCP](docs/catalog_ar.md) — unified registry in [`registry/mcp_servers.json`](registry/mcp_servers.json)
+- **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
+- **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`); tool names and `inputSchema` stay untouched and every failure fails open.
 
 **New in 1.4.0** — hardened for exposure beyond loopback: nonce-based CSP,
 multi-key auth with read-only keys, a 1 MiB body cap, rate limiting with a shared
@@ -72,6 +75,9 @@ Working from a checkout instead? `pip install -e ".[api,dev]"`.
 mcp-hub stats
 mcp-hub doctor --json
 mcp-hub sync-registry --limit 500
+mcp-hub sync-arabic   # upstream-only Arabic registry cache refresh
+mcp-hub query-catalog --profile code-review --access-mode read-only
+mcp-hub query-catalog --tag rag-web-search --ready-only
 mcp-hub import-text servers.txt --source curated
 mcp-hub search "browser" --limit 20
 mcp-hub enrich-github --limit 200
@@ -183,6 +189,7 @@ fastmcp install cursor src/mcp_hub/mcp_server.py --project .
 | `provenance_events` | Audit trail for a server |
 | `doctor_report` | Read-only health checks |
 | `suggest_category` | Classifier suggestion for one server |
+| `query_catalog` | Filter servers/tools by category, tag, task profile, access mode or readiness |
 
 Resource: `mcp-hub://stats` returns live catalog statistics as JSON.
 

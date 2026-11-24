@@ -1,0 +1,46 @@
+{
+  "profile_id": "ai-agent-builder",
+  "title_ar": "بناء وكيل ذكي",
+  "description_ar": "تجميع أدوات البحث والذاكرة والتقييم لبناء وكيل يعمل بصلاحيات قراءة فقط بشكل افتراضي.",
+  "default_access_mode": "read-only",
+  "allowed_categories": [
+    "arabic",
+    "catalog",
+    "code",
+    "search"
+  ],
+  "preferred_tags": [
+    "memory-context",
+    "rag-web-search",
+    "action-execution",
+    "eval-observability",
+    "localization"
+  ],
+  "steps": [
+    {
+      "step_id": "gather_context",
+      "title_ar": "جمع السياق والذاكرة",
+      "tool_tags": [
+        "memory-context",
+        "rag-web-search"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "plan_actions",
+      "title_ar": "تخطيط الإجراءات",
+      "tool_tags": [
+        "action-execution"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "evaluate",
+      "title_ar": "تقييم النتائج",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    }
+  ]
+}

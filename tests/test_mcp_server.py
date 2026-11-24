@@ -221,6 +221,17 @@ def test_all_tools_are_read_only(mcp_module):
     mcp_module.provenance_events(sid)
     mcp_module.doctor_report()
     mcp_module.suggest_category(sid)
+    mcp_module.query_catalog(kind="tool", tag="rag-web-search", limit=3)
     mcp_module.stats_resource()
     after = mcp_module._catalog.stats()["records"]
     assert before == after
+
+
+# -- query_catalog ----------------------------------------------------------
+def test_query_catalog_tool(mcp_module):
+    result = mcp_module.query_catalog(
+        kind="tool", profile="code-review", access_mode="read-only", limit=5
+    )
+    assert result["count"] <= 5
+    assert all("code-review" in row["task_profiles"] for row in result["results"])
+    assert all(row["access_mode"] == "read-only" for row in result["results"])

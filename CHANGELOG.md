@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Unified MCP registry** (`registry/mcp_servers.json`) covering 20 servers and 139 documented tools — the existing local/`mcp-hub` entries plus GitHub, Git, Serena, Context7, Supabase, Postgres, SQLite, DBHub, Playwright, Chrome DevTools, Firecrawl, Fetch, Brave Search, Filesystem, Desktop Commander and MarkItDown. Native `mcpServers` fields stay unchanged; Arabic `name_ar`, `description_ar`, `category_ar` and `params_ar` are display-only.
+- **Arabic catalog** (`docs/catalog_ar.md`) generated from the registry, with per-category tables, parameter explanations and quick-start examples; linked from the README and MkDocs nav.
+- **Registry validator** (`scripts/validate_registry.py`) and 8 tests (`tests/test_registry_ar.py`) checking strict UTF-8, Arabic metadata on every server/tool, unique ids/tools/URLs, no port or launch-signature conflicts, and empty `env` values (no secrets in the repo).
+- **Arabic runtime layer** (`src/mcp_hub/arabic_runtime.py`): opt-in `MCP_HUB_AR_RUNTIME=1` wrapper around `tools/list` that adds Arabic descriptions from the registry plus a deterministic glossary fallback. Protocol tool names and `inputSchema` are never changed, and cache/translation/network failures fail open.
+- **Upstream-only live sync** (`src/mcp_hub/live_sync.py`): exact default-branch raw registry URL allowlist, SSRF-checked fetch through `safe_fetch`, atomic cache replacement, conditional refreshes, and a `mcp-hub sync-arabic` CLI command. Forks, branches and arbitrary URLs are refused.
+- **Capability/task profiles**: backward-compatible `tags`, `task_profiles`, `access_mode` (`read-only`|`read-write`) and `requires_env` on servers and tools; five JSON profiles under `profiles/`; a pure-stdlib `catalog_query` library, `mcp-hub query-catalog` CLI and read-only `query_catalog` MCP tool with `ready_only` filtering. All registered tools are capability-labelled; the validator checks profile ids, tag values and env declarations.
+
 ## [1.4.0] — 2026-11-17
 
 Release-hardening line. A default loopback install behaves as before; every item

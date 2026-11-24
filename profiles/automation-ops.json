@@ -1,0 +1,47 @@
+{
+  "profile_id": "automation-ops",
+  "title_ar": "الأتمتة والتشغيل",
+  "description_ar": "تشغيل إجراءات كتابة وتنفيذ على الملفات وقواعد البيانات والمتصفح مع طلب موافقة صريحة قبل التنفيذ.",
+  "default_access_mode": "read-write",
+  "requires_explicit_approval": true,
+  "allowed_categories": [
+    "arabic",
+    "browser",
+    "catalog",
+    "code",
+    "database",
+    "files"
+  ],
+  "preferred_tags": [
+    "action-execution",
+    "execution",
+    "security-scan"
+  ],
+  "steps": [
+    {
+      "step_id": "inspect_state",
+      "title_ar": "فحص الحالة",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "request_approval",
+      "title_ar": "طلب موافقة صريحة",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "execute_change",
+      "title_ar": "تنفيذ التغيير",
+      "tool_tags": [
+        "action-execution",
+        "execution"
+      ],
+      "access_mode": "read-write"
+    }
+  ]
+}
