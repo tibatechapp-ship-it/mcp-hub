@@ -8,9 +8,13 @@ subcommand. Commands print JSON on stdout; diagnostics go to stderr.
 | `stats` | Record counts, sources, duplicate candidates, FTS state |
 | `doctor` | Diagnostics: journal mode, page counts, vacuum advice, backup hint |
 | `sync-registry [--limit N] [--cursor C]` | Pull from the MCP registry |
+| `query-catalog [--kind K] [--tag T] [--profile P] [--ready-only] [--limit N]` | Query the bundled capability catalog |
+| `route-task TASK [--limit N] [--compact]` | Rank tools for an Arabic/English task |
+| `description-smells [--limit N]` | Audit descriptions with six stable codes |
+| `policy-snapshot` | Show the active tool policy safely |
 | `import-text FILE [--source S]` | Import `name\|publisher\|description\|repo_url` lines |
 | `search QUERY [--limit N] [--fts]` | Search (LIKE by default, FTS5 with `--fts`) |
-| `enrich-github [--limit N] [--token T]` | Add stars/forks/license/topics |
+| `enrich-github [--limit N]` | Add stars/forks/license/topics (uses `GITHUB_TOKEN` from the environment) |
 | `classify [--overwrite]` | Assign categories |
 | `provenance ID [--field F] [--conflicts-only] [--events] [--limit N]` | Field history or audit trail |
 | `export {json,csv,markdown,md} OUTPUT` | Export the catalog |

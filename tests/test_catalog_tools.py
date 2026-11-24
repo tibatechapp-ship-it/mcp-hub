@@ -55,6 +55,9 @@ def test_manifest_pin_matches_current_specs():
         "doctor_report",
         "suggest_category",
         "query_catalog",
+        "route_task",
+        "description_smell_audit",
+        "policy_snapshot",
     ]
 
 
