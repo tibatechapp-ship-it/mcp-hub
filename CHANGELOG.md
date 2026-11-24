@@ -4,6 +4,7 @@
 
 ### Added
 - **Phase 5 actionable approvals**: a default-deny `approvals` policy section separate from tool and skill reads, MCP methods `skills/approve`, `skills/revoke`, `tasks/approve` and scoped `tasks/list`, digest-bound redacted skill approval events, atomic task approval under `BEGIN IMMEDIATE`, CLI `task-list` / `task-approve`, and read-only `available_actions` metadata in the approval Apps resource. The pinned tool manifest is unchanged.
+- **Approval CLI contract**: `skill-list`, `skill-approve`, `skill-revoke`, `task-list` and `task-approve` now accept `--json` for compact stdout and structured JSON failures on stderr, with documented exit codes (`0` success, `1` not found, `2` bad input or invalid state).
 
 ## [1.5.0] — 2026-11-24
 
