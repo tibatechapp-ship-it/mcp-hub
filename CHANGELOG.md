@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-11-24
+
+Capability, protocol and observability line (PRs #40-#47). Builds on the 1.4.0
+hardening without changing it: the MCP surface is stateless and pinned, the
+catalog is Arabic-aware and capability-labelled, policy/routing/skills/tasks are
+deterministic, and telemetry is optional with SQLite as the zero-dependency
+default. Release gate: 425 tests passed, 90.43% coverage, 12/12 CI/Docs checks
+green, PEP 503 index regenerated from the tagged artifacts.
+
 ### Added
 - **Unified MCP registry** (`registry/mcp_servers.json`) covering 20 servers and 139 documented tools — the existing local/`mcp-hub` entries plus GitHub, Git, Serena, Context7, Supabase, Postgres, SQLite, DBHub, Playwright, Chrome DevTools, Firecrawl, Fetch, Brave Search, Filesystem, Desktop Commander and MarkItDown. Native `mcpServers` fields stay unchanged; Arabic `name_ar`, `description_ar`, `category_ar` and `params_ar` are display-only.
 - **Arabic catalog** (`docs/catalog_ar.md`) generated from the registry, with per-category tables, parameter explanations and quick-start examples; linked from the README and MkDocs nav.
