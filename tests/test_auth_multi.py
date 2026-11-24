@@ -142,3 +142,10 @@ def test_metrics_is_key_gated_even_though_it_is_not_under_api(tmp_path):
     client = _client(tmp_path, [ApiKey("one", "k-one")])
     assert client.get("/metrics").status_code == 401
     assert client.get("/metrics", headers={"X-API-Key": "k-one"}).status_code == 200
+
+
+def test_openapi_and_docs_are_key_gated(tmp_path):
+    client = _client(tmp_path, [ApiKey("one", "k-one")])
+    for path in ("/openapi.json", "/docs", "/redoc"):
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers={"X-API-Key": "k-one"}).status_code == 200

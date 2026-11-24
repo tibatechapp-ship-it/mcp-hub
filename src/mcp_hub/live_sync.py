@@ -3,8 +3,9 @@
 The only accepted source of truth is the curated registry JSON on the default
 branch of this repository. Local edits, forks, arbitrary URLs and branch names
 are never accepted as an upstream source. Every fetch goes through
-:func:`mcp_hub.safe_fetch.safe_request` so DNS rebinding and private-network
-pivots stay blocked.
+:func:`mcp_hub.safe_fetch.safe_request`, which validates each hop and pins the
+TCP connection to the verified IP, so DNS rebinding and private-network pivots
+stay blocked.
 """
 
 from __future__ import annotations
@@ -81,12 +82,14 @@ def save_cache(
     *,
     source: str,
     digest: str = "",
+    etag: str = "",
 ) -> None:
     """Atomically replace the cache with a freshly validated registry."""
     envelope = {
         "schema_version": 1,
         "source": source,
         "digest": digest,
+        "etag": etag,
         "synced_at": time.time(),
         "registry": registry,
     }
@@ -148,10 +151,20 @@ def refresh_from_upstream(
                 )
 
     headers: dict[str, str] = {}
-    if cached and cached.get("digest"):
-        headers["If-None-Match"] = str(cached["digest"])
+    if cached and cached.get("etag"):
+        # ETag is the server's version token. The body digest is useful for
+        # integrity, but GitHub does not accept it as If-None-Match.
+        headers["If-None-Match"] = str(cached["etag"])
 
-    status, body = safe_request(url, headers=headers, timeout=5.0, max_bytes=2 * 1024 * 1024)
+    response_headers: dict[str, str] = {}
+    status, body = safe_request(
+        url,
+        headers=headers,
+        timeout=5.0,
+        max_bytes=2 * 1024 * 1024,
+        response_headers=response_headers,
+    )
+    upstream_etag = response_headers.get("ETag", "")
     if status == 304 and cached:
         registry = cached.get("registry")
         if _valid_registry(registry):
@@ -172,7 +185,13 @@ def refresh_from_upstream(
         raise UpstreamError("upstream registry has no mcpServers object")
 
     digest = hashlib.sha256(body).hexdigest()
-    save_cache(cache_path, cast(dict[str, Any], registry), source="upstream", digest=digest)
+    save_cache(
+        cache_path,
+        cast(dict[str, Any], registry),
+        source="upstream",
+        digest=digest,
+        etag=upstream_etag,
+    )
     return SyncResult(
         status="updated",
         registry=cast(dict[str, Any], registry),

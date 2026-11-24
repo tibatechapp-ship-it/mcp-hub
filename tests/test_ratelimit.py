@@ -43,6 +43,20 @@ def test_rate_limit_enforced(tmp_path, monkeypatch):
     assert r.json()["detail"] == "rate limit exceeded"
 
 
+def test_unauthenticated_requests_do_not_consume_rate_limit(tmp_path, monkeypatch):
+    monkeypatch.delenv("MCP_HUB_API_KEYS", raising=False)
+    monkeypatch.setenv("MCP_HUB_API_KEY", "secret")
+    monkeypatch.setenv("MCP_HUB_RATE_LIMIT_PER_MIN", "1")
+    catalog = Catalog(tmp_path / "db.sqlite3")
+    client = TestClient(create_app(catalog=catalog))
+
+    for _ in range(3):
+        assert client.get("/api/stats").status_code == 401
+
+    assert client.get("/api/stats", headers={"X-API-Key": "secret"}).status_code == 200
+    assert client.get("/api/stats", headers={"X-API-Key": "secret"}).status_code == 429
+
+
 def test_rate_limit_disabled(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch, per_minute=0)
     for _ in range(50):

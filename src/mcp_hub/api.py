@@ -38,8 +38,15 @@ def create_app(
 ):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
     app = FastAPI(title="mcp-hub", version=__version__, debug=False)
-    add_auth_middleware(app, api_key)
 
+    # Middleware added later wraps earlier ones. Build inner->outer so the
+    # effective order is observability -> headers -> CORS -> auth -> rate limit ->
+    # payload limit -> router. Auth before the limiter means a rejected key never
+    # spends a client's quota; CORS stays outside auth so 401/429 responses keep
+    # their browser headers.
+    install_payload_limit(app)  # 1 MiB body cap, MCP_HUB_MAX_BODY_BYTES
+    install_rate_limit(app)  # 120 req/min per IP, MCP_HUB_RATE_LIMIT_PER_MIN
+    add_auth_middleware(app, api_key)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),
@@ -48,13 +55,6 @@ def create_app(
         allow_credentials=False,
         max_age=600,
     )
-
-    # Runtime hardening: per-IP rate limit (P1.1) and body-size cap (P2.2).
-    install_rate_limit(app)  # 120 req/min per IP, MCP_HUB_RATE_LIMIT_PER_MIN
-    install_payload_limit(app)  # 1 MiB body cap, MCP_HUB_MAX_BODY_BYTES
-    # Middleware added later wraps earlier ones. Security headers are added
-    # after the limiters, so their 401/429/413 responses carry the header set;
-    # observability goes on top of everything so it can count those refusals.
     install_security_headers(app)
     install_observability(app)
 
