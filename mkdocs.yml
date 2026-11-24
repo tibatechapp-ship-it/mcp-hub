@@ -15,6 +15,7 @@ nav:
   - HTTP API: api.md
   - Security model: security.md
   - Operations: operations.md
+  - Arabic catalog: catalog_ar.md
 markdown_extensions:
   - admonition
   - tables

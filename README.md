@@ -24,6 +24,7 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
 - **Docs:** <https://tibatechapp-ship-it.github.io/mcp-hub/> (source in [`docs/`](docs/index.md))
+- **العربية:** [فهرس خوادم وأدوات MCP](docs/catalog_ar.md) — unified registry in [`registry/mcp_servers.json`](registry/mcp_servers.json)
 
 **New in 1.4.0** — hardened for exposure beyond loopback: nonce-based CSP,
 multi-key auth with read-only keys, a 1 MiB body cap, rate limiting with a shared
