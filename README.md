@@ -25,6 +25,7 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Docker:** `ghcr.io/tibatechapp-ship-it/mcp-hub`
 - **Docs:** <https://tibatechapp-ship-it.github.io/mcp-hub/> (source in [`docs/`](docs/index.md))
 - **العربية:** [فهرس خوادم وأدوات MCP](docs/catalog_ar.md) — unified registry in [`registry/mcp_servers.json`](registry/mcp_servers.json)
+- **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`); tool names and `inputSchema` stay untouched and every failure fails open.
 
 **New in 1.4.0** — hardened for exposure beyond loopback: nonce-based CSP,
 multi-key auth with read-only keys, a 1 MiB body cap, rate limiting with a shared
@@ -73,6 +74,7 @@ Working from a checkout instead? `pip install -e ".[api,dev]"`.
 mcp-hub stats
 mcp-hub doctor --json
 mcp-hub sync-registry --limit 500
+mcp-hub sync-arabic   # upstream-only Arabic registry cache refresh
 mcp-hub import-text servers.txt --source curated
 mcp-hub search "browser" --limit 20
 mcp-hub enrich-github --limit 200

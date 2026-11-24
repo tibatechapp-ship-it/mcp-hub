@@ -21,7 +21,7 @@ try:  # mcp >= 2 renamed FastMCP to MCPServer
 except ImportError:  # pragma: no cover - exercised by the mcp 1.x CI lane
     from mcp.server.fastmcp import FastMCP as _MCPApp
 
-from . import doctor, provenance, taxonomy
+from . import arabic_runtime, doctor, provenance, taxonomy
 from .database import Catalog
 
 mcp = _MCPApp(
@@ -191,8 +191,13 @@ def stats_resource() -> str:
     return json.dumps(_catalog.stats(), ensure_ascii=False, indent=2)
 
 
+# -- runtime localization (opt-in; fail-open) -------------------------------
+arabic_runtime.install(mcp)
+
+
 # -- entry point ------------------------------------------------------------
 def main() -> None:
+    arabic_runtime.install(mcp)
     mcp.run()
 
 

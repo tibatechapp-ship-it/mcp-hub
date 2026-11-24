@@ -59,10 +59,14 @@ mcp-hub-server = "mcp_hub.mcp_server:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcp_hub"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"registry/mcp_servers.json" = "mcp_hub/registry/mcp_servers.json"
+
 [tool.hatch.build.targets.sdist]
 include = [
   "/src",
   "/tests",
+  "/registry",
   "/examples",
   "/README.md",
   "/LICENSE",
@@ -100,6 +104,8 @@ files = [
     "src/mcp_hub/payload_limit.py",
     "src/mcp_hub/safe_fetch.py",
     "src/mcp_hub/redact.py",
+    "src/mcp_hub/live_sync.py",
+    "src/mcp_hub/arabic_runtime.py",
 ]
 # Widen this list module by module; a repo-wide strict gate on day one would be
 # noise, a gate on the security core is a promise that can be kept.

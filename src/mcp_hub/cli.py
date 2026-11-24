@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -79,6 +80,32 @@ def cmd_sync_registry(args):
     servers = registry_api.fetch_servers(limit=int(args.limit), cursor=args.cursor)
     res = db.bulk_add(servers, progress_callback=_progress)
     print(json.dumps(res, ensure_ascii=False, indent=2))
+
+
+def cmd_sync_arabic(args):
+    from .live_sync import DEFAULT_CACHE, DEFAULT_UPSTREAM_URL, refresh_from_upstream
+
+    cache = Path(args.cache).expanduser() if args.cache else DEFAULT_CACHE
+    upstream = args.upstream or os.environ.get("MCP_HUB_AR_UPSTREAM_URL", DEFAULT_UPSTREAM_URL)
+    try:
+        result = refresh_from_upstream(cache, upstream, force=True)
+    except Exception as e:  # noqa: BLE001 - CLI reports the policy/network error
+        print(f"arabic sync failed: {e}", file=sys.stderr)
+        return 2
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "status": result.status,
+                "source": result.source,
+                "digest": result.digest,
+                "cache": str(cache),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
 
 
 def cmd_import_text(args):
@@ -260,6 +287,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=100)
     s.add_argument("--cursor", default=None)
     s.set_defaults(func=cmd_sync_registry)
+
+    s = sub.add_parser("sync-arabic", help="Refresh Arabic registry from upstream only")
+    s.add_argument("--upstream", default=None, help="Exact upstream default-branch registry URL")
+    s.add_argument("--cache", default=None, help="Arabic runtime cache file")
+    s.set_defaults(func=cmd_sync_arabic)
 
     s = sub.add_parser("import-text", help="Import from pipe-delimited text file")
     s.add_argument("file")
