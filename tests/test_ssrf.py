@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import ssl
 import urllib.error
 
 import pytest
@@ -297,6 +298,9 @@ def test_pinned_connection_uses_verified_ip_and_original_sni(monkeypatch):
             return None
 
     class DummyContext:
+        check_hostname = True
+        verify_mode = ssl.CERT_REQUIRED
+
         def wrap_socket(self, sock, server_hostname=None):
             calls["sni"] = server_hostname
             return sock
