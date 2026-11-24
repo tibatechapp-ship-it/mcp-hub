@@ -39,6 +39,13 @@ handler runs. Allow/deny rules and redaction are configured with
 returns application error `-10002` (`POLICY_DENIED`). See
 [Phase 2](phase2.md) for the full schema and audit format.
 
+Phase 3 adds `skills/list`, `skills/get`, `tasks/get`, `tasks/update`,
+`tasks/cancel` and `persona/simulate`. `skills/get` mirrors `params.name`,
+`tasks/*` mirror `params.task_id`, and `persona/simulate` mirrors
+`params.scenario` in `Mcp-Name`. A task outside the given tenant/session scope
+returns `-10003` (`TASK_DENIED`). Skill reads use the policy's separate
+`skills` allow/deny section and never execute tools; see [Phase 3](phase3.md).
+
 ## Example
 
 ```bash

@@ -152,6 +152,95 @@ def cmd_policy_snapshot(args):
     return 0
 
 
+def cmd_skill_list(args):
+    from .skills import SkillRegistry
+
+    registry = SkillRegistry(_db(args))
+    print(json.dumps([item.summary() for item in registry.list()], ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_skill_get(args):
+    from .skills import SkillError, SkillRegistry
+
+    try:
+        package = SkillRegistry(_db(args)).get(args.name)
+    except (KeyError, SkillError) as exc:
+        print(f"skill-get failed: {exc}", file=sys.stderr)
+        return 2
+    print(
+        json.dumps(
+            package.to_dict(include_files=not args.metadata_only), ensure_ascii=False, indent=2
+        )
+    )
+    return 0
+
+
+def cmd_skill_approve(args):
+    from .skills import SkillRegistry
+
+    try:
+        digest = SkillRegistry(_db(args)).approve(args.name, args.actor)
+    except (KeyError, ValueError) as exc:
+        print(f"skill-approve failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps({"name": args.name, "sha256": digest, "approved": True}, ensure_ascii=False))
+    return 0
+
+
+def cmd_skill_revoke(args):
+    from .skills import SkillRegistry
+
+    removed = SkillRegistry(_db(args)).revoke(args.name)
+    print(
+        json.dumps({"name": args.name, "approved": False, "removed": removed}, ensure_ascii=False)
+    )
+    return 0
+
+
+def cmd_task_get(args):
+    from .tasks import TaskError, TaskStore
+
+    try:
+        result = TaskStore(_db(args)).get(args.task_id, args.tenant, args.session)
+    except TaskError as exc:
+        print(f"task-get failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_task_cancel(args):
+    from .tasks import TaskError, TaskStore
+
+    try:
+        result = TaskStore(_db(args)).cancel(args.task_id, args.tenant, args.session, args.reason)
+    except TaskError as exc:
+        print(f"task-cancel failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_persona_simulate(args):
+    from .catalog_tools import build_tool_policy
+    from .persona import PersonaSimulator
+    from .tasks import TaskError, TaskStore
+
+    try:
+        result = PersonaSimulator(TaskStore(_db(args)), build_tool_policy()).run(
+            args.scenario,
+            args.tenant,
+            args.session,
+            task_id=args.task_id,
+        )
+    except (TaskError, ValueError) as exc:
+        print(f"persona-simulate failed: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_query_catalog(args):
     from .catalog_query import query_catalog
 
@@ -392,6 +481,45 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("policy-snapshot", help="Show the active tool policy safely")
     s.set_defaults(func=cmd_policy_snapshot)
+
+    s = sub.add_parser("skill-list", help="List validated read-only skill packages")
+    s.set_defaults(func=cmd_skill_list)
+
+    s = sub.add_parser("skill-get", help="Show a validated skill package")
+    s.add_argument("name")
+    s.add_argument("--metadata-only", action="store_true", help="Omit file bodies")
+    s.set_defaults(func=cmd_skill_get)
+
+    s = sub.add_parser("skill-approve", help="Pin the current skill digest as approved")
+    s.add_argument("name")
+    s.add_argument("--actor", default="local")
+    s.set_defaults(func=cmd_skill_approve)
+
+    s = sub.add_parser("skill-revoke", help="Remove a stored skill approval")
+    s.add_argument("name")
+    s.set_defaults(func=cmd_skill_revoke)
+
+    s = sub.add_parser("task-get", help="Read a scoped durable task")
+    s.add_argument("task_id")
+    s.add_argument("--tenant", required=True)
+    s.add_argument("--session", required=True)
+    s.set_defaults(func=cmd_task_get)
+
+    s = sub.add_parser("task-cancel", help="Cancel a scoped durable task")
+    s.add_argument("task_id")
+    s.add_argument("--tenant", required=True)
+    s.add_argument("--session", required=True)
+    s.add_argument("--reason", default="cancelled by caller")
+    s.set_defaults(func=cmd_task_cancel)
+
+    s = sub.add_parser("persona-simulate", help="Replay a local deterministic tool chain")
+    s.add_argument(
+        "scenario", choices=("safe_chain", "retry_then_success", "secret_leak", "permission_bypass")
+    )
+    s.add_argument("--tenant", required=True)
+    s.add_argument("--session", required=True)
+    s.add_argument("--task-id", default=None)
+    s.set_defaults(func=cmd_persona_simulate)
 
     s = sub.add_parser("import-text", help="Import from pipe-delimited text file")
     s.add_argument("file")

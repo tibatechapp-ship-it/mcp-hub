@@ -18,6 +18,7 @@ import json
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "UNSUPPORTED_PROTOCOL_VERSION",
     "TOOL_MANIFEST_DRIFT",
     "POLICY_DENIED",
+    "TASK_DENIED",
     "MCPError",
     "HeaderMismatchError",
     "ToolSpec",
@@ -60,7 +62,22 @@ HEADER_PROTOCOL_VERSION = "mcp-protocol-version"
 HEADER_METHOD = "mcp-method"
 HEADER_NAME = "mcp-name"
 HEADER_PARAM_PREFIX = "mcp-param-"
-NAME_HEADERS_METHODS = frozenset({"tools/call", "resources/read", "prompts/get"})
+SKILL_RESOURCE_PREFIX = "mcp-hub://skills/"
+
+# Methods that must mirror their identifying parameter in ``Mcp-Name``.
+NAME_HEADERS_PARAMS: Mapping[str, str] = MappingProxyType(
+    {
+        "tools/call": "name",
+        "prompts/get": "name",
+        "resources/read": "uri",
+        "skills/get": "name",
+        "tasks/get": "task_id",
+        "tasks/update": "task_id",
+        "tasks/cancel": "task_id",
+        "persona/simulate": "scenario",
+    }
+)
+NAME_HEADERS_METHODS = frozenset(NAME_HEADERS_PARAMS)
 
 SENTINEL_PREFIX = "=?base64?"
 SENTINEL_SUFFIX = "?="
@@ -76,6 +93,7 @@ UNSUPPORTED_PROTOCOL_VERSION = -32022
 # Application-defined: outside JSON-RPC's reserved -32768..-32000 block.
 TOOL_MANIFEST_DRIFT = -10001
 POLICY_DENIED = -10002
+TASK_DENIED = -10003
 
 # Mirroring these in headers would leak or smuggle credentials past body-based
 # policy/redaction. They are rejected before any value comparison.
@@ -347,8 +365,8 @@ def validate_request(
         )
 
     raw_name = hdrs.get(HEADER_NAME)
-    if method in NAME_HEADERS_METHODS:
-        source = "uri" if method == "resources/read" else "name"
+    if method in NAME_HEADERS_PARAMS:
+        source = NAME_HEADERS_PARAMS[method]
         body_name = params.get(source)
         if not isinstance(body_name, str) or not body_name:
             raise MCPError(INVALID_PARAMS, f"{source} is required for {method}")
@@ -401,6 +419,10 @@ def handle(
     server_info: Mapping[str, Any] | None = None,
     instructions: str = "",
     tool_policy: ToolPolicy | None = None,
+    skill_handlers: Mapping[str, Handler] | None = None,
+    skill_policy: ToolPolicy | None = None,
+    task_handlers: Mapping[str, Handler] | None = None,
+    persona_handler: Handler | None = None,
 ) -> tuple[int, dict[str, Any] | None]:
     """Handle one stateless JSON-RPC request.
 
@@ -426,6 +448,9 @@ def handle(
                 "tools": {"listChanged": False},
                 "resources": {"subscribe": False},
                 "prompts": {},
+                "skills": {"listChanged": False, "executionGranted": False},
+                "tasks": {"get": True, "update": True, "cancel": True},
+                "persona": {"simulate": True},
             },
             "serverInfo": info,
             "toolManifestSha256": tool_manifest_digest(tool_specs),
@@ -479,7 +504,18 @@ def handle(
 
     def read_resource() -> dict[str, Any]:
         uri = params.get("uri")
-        handler = (resources or {}).get(uri) if isinstance(uri, str) else None
+        if not isinstance(uri, str):
+            raise MCPError(INVALID_PARAMS, f"Unknown resource: {uri}")
+        if uri.startswith(SKILL_RESOURCE_PREFIX):
+            skill_name = uri[len(SKILL_RESOURCE_PREFIX) :].split("/", 1)[0]
+            if skill_policy is not None and skill_name:
+                try:
+                    skill_policy(skill_name, {"uri": uri})
+                except MCPError:
+                    raise
+                except Exception as exc:  # noqa: BLE001 - policy must fail closed
+                    raise MCPError(POLICY_DENIED, f"Skill read denied: {exc}") from exc
+        handler = (resources or {}).get(uri)
         if handler is None:
             raise MCPError(INVALID_PARAMS, f"Unknown resource: {uri}")
         spec = next((item for item in resource_specs if item.uri == uri), None)
@@ -529,6 +565,89 @@ def handle(
             "_meta": meta,
         }
 
+    def list_skills() -> dict[str, Any]:
+        handler = (skill_handlers or {}).get("skills/list")
+        if handler is None:
+            raise MCPError(METHOD_NOT_FOUND, "Skill registry is not configured")
+        try:
+            raw = handler({})
+        except MCPError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - one handler must not kill the loop
+            raise MCPError(INTERNAL_ERROR, f"{type(exc).__name__}: {exc}") from exc
+        result = dict(raw) if isinstance(raw, Mapping) else {"skills": []}
+        if skill_policy is not None:
+            visible = []
+            for item in result.get("skills", []):
+                name = item.get("name") if isinstance(item, Mapping) else None
+                if not isinstance(name, str):
+                    continue
+                try:
+                    skill_policy(name, {"name": name})
+                except MCPError:
+                    continue
+                except Exception:  # noqa: BLE001 - an invalid policy reveals nothing
+                    continue
+                visible.append(item)
+            result["skills"] = visible
+        result.update({"ttlMs": 0, "cacheScope": "public", "_meta": meta})
+        return result
+
+    def get_skill() -> dict[str, Any]:
+        name = params.get("name")
+        if not isinstance(name, str) or not name:
+            raise MCPError(INVALID_PARAMS, "name is required for skills/get")
+        checked = dict(params)
+        if skill_policy is not None:
+            try:
+                checked = dict(skill_policy(name, checked))
+            except MCPError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - policy must fail closed
+                raise MCPError(POLICY_DENIED, f"Skill read denied: {exc}") from exc
+        handler = (skill_handlers or {}).get("skills/get")
+        if handler is None:
+            raise MCPError(METHOD_NOT_FOUND, "Skill registry is not configured")
+        try:
+            raw = handler(checked)
+        except MCPError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise MCPError(INTERNAL_ERROR, f"{type(exc).__name__}: {exc}") from exc
+        result = dict(raw) if isinstance(raw, Mapping) else {"skill": raw}
+        result["_meta"] = meta
+        return result
+
+    def task_operation(method: str) -> Callable[[], dict[str, Any]]:
+        def run() -> dict[str, Any]:
+            handler = (task_handlers or {}).get(method)
+            if handler is None:
+                raise MCPError(METHOD_NOT_FOUND, "Task store is not configured")
+            try:
+                raw = handler(dict(params))
+            except MCPError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - isolation failures map to -10003
+                raise MCPError(TASK_DENIED, f"Task operation failed: {type(exc).__name__}") from exc
+            result = dict(raw) if isinstance(raw, Mapping) else {"task": raw}
+            result["_meta"] = meta
+            return result
+
+        return run
+
+    def persona_simulate() -> dict[str, Any]:
+        if persona_handler is None:
+            raise MCPError(METHOD_NOT_FOUND, "Persona simulator is not configured")
+        try:
+            raw = persona_handler(dict(params))
+        except MCPError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise MCPError(INVALID_PARAMS, f"Persona simulation failed: {exc}") from exc
+        result = dict(raw) if isinstance(raw, Mapping) else {"simulation": raw}
+        result["_meta"] = meta
+        return result
+
     dispatch: dict[str, Callable[[], dict[str, Any]]] = {
         "server/discover": discover,
         "ping": lambda: {"_meta": meta},
@@ -538,6 +657,12 @@ def handle(
         "resources/read": read_resource,
         "prompts/list": list_prompts,
         "prompts/get": get_prompt,
+        "skills/list": list_skills,
+        "skills/get": get_skill,
+        "tasks/get": task_operation("tasks/get"),
+        "tasks/update": task_operation("tasks/update"),
+        "tasks/cancel": task_operation("tasks/cancel"),
+        "persona/simulate": persona_simulate,
     }
     handler = dispatch.get(method)
     if handler is None:

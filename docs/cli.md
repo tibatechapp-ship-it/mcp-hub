@@ -12,6 +12,10 @@ subcommand. Commands print JSON on stdout; diagnostics go to stderr.
 | `route-task TASK [--limit N] [--compact]` | Rank tools for an Arabic/English task |
 | `description-smells [--limit N]` | Audit descriptions with six stable codes |
 | `policy-snapshot` | Show the active tool policy safely |
+| `skill-list` / `skill-get NAME [--metadata-only]` | List/read validated read-only skill packages |
+| `skill-approve NAME [--actor A]` / `skill-revoke NAME` | Pin or revoke a content-bound skill approval |
+| `task-get ID --tenant T --session S` / `task-cancel ID --tenant T --session S [--reason R]` | Read/cancel scoped durable tasks |
+| `persona-simulate SCENARIO --tenant T --session S [--task-id ID]` | Replay a local deterministic tool chain |
 | `import-text FILE [--source S]` | Import `name\|publisher\|description\|repo_url` lines |
 | `search QUERY [--limit N] [--fts]` | Search (LIKE by default, FTS5 with `--fts`) |
 | `enrich-github [--limit N]` | Add stars/forks/license/topics (uses `GITHUB_TOKEN` from the environment) |

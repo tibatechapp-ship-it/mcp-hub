@@ -9,20 +9,33 @@ manifest pin update instead of silently changing what a client already approved.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from . import (
     catalog_query,
     description_smells,
     doctor,
+    persona,
     policy_gateway,
     provenance,
     semantic_router,
+    skills,
     taxonomy,
 )
 from .database import Catalog
-from .mcp_stateless import POLICY_DENIED, MCPError, ResourceSpec, ToolSpec
+from .mcp_stateless import (
+    INVALID_PARAMS,
+    POLICY_DENIED,
+    TASK_DENIED,
+    Handler,
+    MCPError,
+    ResourceSpec,
+    ToolPolicy,
+    ToolSpec,
+)
+from .tasks import TaskError, TaskStore
 
 __all__ = [
     "TOOL_SPECS",
@@ -33,9 +46,10 @@ __all__ = [
     "route_task",
     "description_smell_audit",
     "policy_snapshot",
+    "Phase3Runtime",
+    "build_phase3",
+    "build_tool_policy",
 ]
-
-Handler = Callable[[Mapping[str, Any]], Any]
 
 PINNED_TOOL_MANIFEST_SHA256 = "6009656f1d4cc30fb9f079b8b6f2bdec01a04abfefc4099462f46998804d2857"
 
@@ -174,6 +188,24 @@ def _boolean(args: Mapping[str, Any], key: str, default: bool = False) -> bool:
     value = args.get(key, default)
     if not isinstance(value, bool):
         raise ValueError(f"{key} must be a boolean")
+    return value
+
+
+def _optional_string(args: Mapping[str, Any], key: str) -> str | None:
+    if key not in args or args[key] is None:
+        return None
+    value = args[key]
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    return value
+
+
+def _optional_integer(args: Mapping[str, Any], key: str) -> int | None:
+    if key not in args or args[key] is None:
+        return None
+    value = args[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{key} must be an integer")
     return value
 
 
@@ -391,3 +423,161 @@ def build_resources(catalog: Catalog) -> dict[str, Handler]:
         return json.dumps(catalog.stats(), ensure_ascii=False, sort_keys=True)
 
     return {"mcp-hub://stats": stats}
+
+
+@dataclass(frozen=True, slots=True)
+class Phase3Runtime:
+    """Wired skills, tasks and persona surfaces for one catalog database."""
+
+    skill_registry: skills.SkillRegistry
+    skill_handlers: dict[str, Handler]
+    skill_resources: dict[str, Handler]
+    resource_specs: tuple[ResourceSpec, ...]
+    skill_policy: ToolPolicy
+    task_store: TaskStore
+    task_handlers: dict[str, Handler]
+    persona_handler: Handler
+
+
+def build_tool_policy() -> ToolPolicy:
+    """Bind the configured ZYKO-compatible gate to tool calls."""
+
+    try:
+        gateway = policy_gateway.PolicyGateway.from_env()
+    except (policy_gateway.ConfigError, OSError, ValueError) as exc:
+        message = f"Policy configuration invalid: {exc}"
+
+        def deny_invalid(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+            _ = name, args
+            raise MCPError(POLICY_DENIED, message, {"policy": "invalid"})
+
+        return deny_invalid
+
+    def enforce(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+        try:
+            return gateway.enforce(name, args)
+        except policy_gateway.PolicyDenied as exc:
+            raise MCPError(POLICY_DENIED, exc.reason, {"rule": exc.rule}) from exc
+
+    return enforce
+
+
+def build_skill_policy() -> ToolPolicy:
+    """Bind the ``skills`` section of the Phase 2 policy to skill reads."""
+
+    try:
+        gateway = policy_gateway.PolicyGateway.from_env()
+    except (policy_gateway.ConfigError, OSError, ValueError) as exc:
+        message = f"Policy configuration invalid: {exc}"
+
+        def deny_invalid(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+            _ = name, args
+            raise MCPError(POLICY_DENIED, message, {"policy": "invalid"})
+
+        return deny_invalid
+
+    def enforce(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+        try:
+            gateway.enforce_skill(name)
+        except policy_gateway.PolicyDenied as exc:
+            raise MCPError(POLICY_DENIED, exc.reason, {"rule": exc.rule}) from exc
+        return dict(args)
+
+    return enforce
+
+
+def build_task_handlers(store: TaskStore) -> dict[str, Handler]:
+    def get(args: Mapping[str, Any]) -> Any:
+        try:
+            return store.get(
+                _string(args, "task_id"),
+                _string(args, "tenant_id"),
+                _string(args, "session_id"),
+                include_events=_boolean(args, "include_events", True),
+            )
+        except (TaskError, ValueError) as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+
+    def update(args: Mapping[str, Any]) -> Any:
+        payload = args.get("payload")
+        if payload is not None and not isinstance(payload, Mapping):
+            raise MCPError(INVALID_PARAMS, "payload must be an object")
+        try:
+            return store.update(
+                _string(args, "task_id"),
+                _string(args, "tenant_id"),
+                _string(args, "session_id"),
+                status=_optional_string(args, "status"),
+                payload=payload,
+                result=args.get("result"),
+                error=_optional_string(args, "error"),
+                attempts=_optional_integer(args, "attempts"),
+                lease_owner=_optional_string(args, "lease_owner"),
+                lease_until=_optional_string(args, "lease_until"),
+                next_run_at=_optional_string(args, "next_run_at"),
+                event=_optional_string(args, "event"),
+            )
+        except (TaskError, ValueError) as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+
+    def cancel(args: Mapping[str, Any]) -> Any:
+        try:
+            return store.cancel(
+                _string(args, "task_id"),
+                _string(args, "tenant_id"),
+                _string(args, "session_id"),
+                reason=_string(args, "reason", "cancelled by caller"),
+            )
+        except (TaskError, ValueError) as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+
+    return {
+        "tasks/get": get,
+        "tasks/update": update,
+        "tasks/cancel": cancel,
+    }
+
+
+def build_persona_handler(store: TaskStore, tool_policy: ToolPolicy) -> Handler:
+    def simulate(args: Mapping[str, Any]) -> Any:
+        scenario = _string(args, "scenario")
+        task_id = _optional_string(args, "task_id")
+        try:
+            result = persona.PersonaSimulator(store, tool_policy).run(
+                scenario,
+                _string(args, "tenant_id"),
+                _string(args, "session_id"),
+                task_id=task_id,
+            )
+        except ValueError as exc:
+            raise MCPError(INVALID_PARAMS, str(exc)) from exc
+        except TaskError as exc:
+            raise MCPError(TASK_DENIED, str(exc)) from exc
+        return result.to_dict()
+
+    return simulate
+
+
+def build_phase3(catalog: Catalog, tool_policy: ToolPolicy) -> Phase3Runtime:
+    try:
+        registry = skills.SkillRegistry(catalog)
+        store = TaskStore(catalog)
+    except Exception:  # noqa: BLE001 - app startup must survive a broken DB for /health
+        registry = skills.SkillRegistry(catalog, initialize=False)
+        store = TaskStore(catalog, initialize=False)
+    skill_handlers = skills.build_skill_handlers(registry)
+    skill_resources = skills.build_skill_resources(registry)
+    resource_specs = tuple(
+        ResourceSpec(uri=uri, name=name, description="Read-only skill file", mime_type=mime)
+        for uri, name, mime in registry.resource_specs()
+    )
+    return Phase3Runtime(
+        skill_registry=registry,
+        skill_handlers=skill_handlers,
+        skill_resources=skill_resources,
+        resource_specs=resource_specs,
+        skill_policy=build_skill_policy(),
+        task_store=store,
+        task_handlers=build_task_handlers(store),
+        persona_handler=build_persona_handler(store, tool_policy),
+    )
