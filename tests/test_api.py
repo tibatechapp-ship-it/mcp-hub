@@ -68,3 +68,45 @@ def test_provenance_endpoint_404(tmp_path):
     client = TestClient(create_app(catalog=cat))
     r = client.get("/api/servers/9999/provenance")
     assert r.status_code == 404
+
+
+def _mcp_request(method: str, params: dict | None = None) -> dict:
+    from mcp_hub.mcp_stateless import MCP_PROTOCOL_VERSION, META_PROTOCOL_VERSION
+
+    payload = dict(params or {})
+    payload.setdefault("_meta", {META_PROTOCOL_VERSION: MCP_PROTOCOL_VERSION})
+    return {"jsonrpc": "2.0", "id": 1, "method": method, "params": payload}
+
+
+def _mcp_headers(method: str) -> dict:
+    from mcp_hub.mcp_stateless import MCP_PROTOCOL_VERSION
+
+    return {"MCP-Protocol-Version": MCP_PROTOCOL_VERSION, "Mcp-Method": method}
+
+
+def test_mcp_endpoint_lists_pinned_tools(tmp_path):
+    from mcp_hub.catalog_tools import TOOL_SPECS
+
+    cat, _ = make_catalog(tmp_path)
+    client = TestClient(create_app(catalog=cat))
+    r = client.post("/mcp", headers=_mcp_headers("tools/list"), json=_mcp_request("tools/list"))
+    assert r.status_code == 200
+    names = [tool["name"] for tool in r.json()["result"]["tools"]]
+    assert names == [spec.name for spec in TOOL_SPECS]
+
+
+def test_mcp_endpoint_header_mismatch_is_400(tmp_path):
+    cat, _ = make_catalog(tmp_path)
+    client = TestClient(create_app(catalog=cat))
+    headers = _mcp_headers("tools/list")
+    headers["Mcp-Name"] = "wrong"
+    r = client.post("/mcp", headers=headers, json=_mcp_request("tools/list"))
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == -32020
+
+
+def test_mcp_endpoint_is_key_gated(tmp_path):
+    cat, _ = make_catalog(tmp_path)
+    client = TestClient(create_app(catalog=cat, api_key="secret"))
+    r = client.post("/mcp", headers=_mcp_headers("tools/list"), json=_mcp_request("tools/list"))
+    assert r.status_code == 401

@@ -20,7 +20,7 @@ _OPEN_PATHS = frozenset({"/api/health", "/"})
 # when a key is configured: they describe every route and parameter.
 _PROTECTED_PREFIXES = ("/api/",)
 _PROTECTED_EXACT = frozenset(
-    {"/metrics", "/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"}
+    {"/metrics", "/mcp", "/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"}
 )
 
 
