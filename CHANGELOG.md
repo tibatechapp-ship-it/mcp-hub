@@ -10,6 +10,7 @@
 - **Upstream-only live sync** (`src/mcp_hub/live_sync.py`): exact default-branch raw registry URL allowlist, SSRF-checked fetch through `safe_fetch`, atomic cache replacement, conditional refreshes, and a `mcp-hub sync-arabic` CLI command. Forks, branches and arbitrary URLs are refused.
 - **Capability/task profiles**: backward-compatible `tags`, `task_profiles`, `access_mode` (`read-only`|`read-write`) and `requires_env` on servers and tools; five JSON profiles under `profiles/`; a pure-stdlib `catalog_query` library, `mcp-hub query-catalog` CLI and read-only `query_catalog` MCP tool with `ready_only` filtering. All registered tools are capability-labelled; the validator checks profile ids, tag values and env declarations.
 - **Stateless MCP core** (`mcp_stateless.py`) and `POST /mcp` for the 2026-07-28 revision: no handshake or sessions, mirrored `MCP-Protocol-Version` / `Mcp-Method` / `Mcp-Name` validation with `-32020` `HeaderMismatch`, Base64 sentinel decoding, optional `Mcp-Param-*` checks, `server/discover`, cacheable list results, and a SHA-256 pinned tool manifest that blocks silent tool-definition drift (`-10001`).
+- **Phase 2 deterministic layer**: a ZYKO-compatible JSON tool policy with allow/deny, recursive redaction and JSONL audit; a bilingual (Arabic/English) semantic router with compact output; a six-code description-smell auditor; and a mirrored-token header guard. New tools `route_task`, `description_smell_audit`, `policy_snapshot` plus CLI commands `route-task`, `description-smells`, `policy-snapshot`.
 
 ## [1.4.0] — 2026-11-17
 

@@ -108,6 +108,50 @@ def cmd_sync_arabic(args):
     return 0
 
 
+def cmd_route_task(args):
+    from .catalog_tools import TOOL_SPECS
+    from .semantic_router import route_task
+
+    try:
+        result = route_task(
+            args.task,
+            specs=TOOL_SPECS,
+            registry_path=args.registry,
+            limit=args.limit,
+            compact=args.compact,
+        )
+    except (OSError, ValueError) as e:
+        print(f"route-task failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_description_smells(args):
+    from .description_smells import audit_registry
+
+    try:
+        result = audit_registry(registry_path=args.registry, limit=args.limit)
+    except (OSError, ValueError) as e:
+        print(f"description-smells failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_policy_snapshot(args):
+    from .policy_gateway import ConfigError, PolicyGateway
+
+    _ = args
+    try:
+        result = PolicyGateway.from_env().snapshot()
+    except (ConfigError, OSError, ValueError) as e:
+        print(f"policy-snapshot failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_query_catalog(args):
     from .catalog_query import query_catalog
 
@@ -333,6 +377,21 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--registry", default=None, help="Override registry JSON path")
     s.add_argument("--profiles-dir", default=None, help="Override task profiles directory")
     s.set_defaults(func=cmd_query_catalog)
+
+    s = sub.add_parser("route-task", help="Rank tools for an Arabic or English task")
+    s.add_argument("task")
+    s.add_argument("--limit", type=int, default=5)
+    s.add_argument("--compact", action="store_true", help="Omit schemas and shorten descriptions")
+    s.add_argument("--registry", default=None, help="Override registry JSON path")
+    s.set_defaults(func=cmd_route_task)
+
+    s = sub.add_parser("description-smells", help="Audit descriptions with six stable codes")
+    s.add_argument("--limit", type=int, default=200)
+    s.add_argument("--registry", default=None, help="Override registry JSON path")
+    s.set_defaults(func=cmd_description_smells)
+
+    s = sub.add_parser("policy-snapshot", help="Show the active tool policy safely")
+    s.set_defaults(func=cmd_policy_snapshot)
 
     s = sub.add_parser("import-text", help="Import from pipe-delimited text file")
     s.add_argument("file")

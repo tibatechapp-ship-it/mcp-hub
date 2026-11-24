@@ -110,6 +110,10 @@ files = [
     "src/mcp_hub/live_sync.py",
     "src/mcp_hub/arabic_runtime.py",
     "src/mcp_hub/catalog_query.py",
+    "src/mcp_hub/mcp_stateless.py",
+    "src/mcp_hub/policy_gateway.py",
+    "src/mcp_hub/semantic_router.py",
+    "src/mcp_hub/description_smells.py",
 ]
 # Widen this list module by module; a repo-wide strict gate on day one would be
 # noise, a gate on the security core is a promise that can be kept.

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Literal
+from collections.abc import Mapping
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from .database import Catalog
 from .headers import CSP_NONCE_PLACEHOLDER, apply_headers, install_security_headers
 from .metrics import REQUEST_ID_HEADER, install_observability, metrics_endpoint
 from .payload_limit import install_payload_limit
+from .policy_gateway import ConfigError, PolicyDenied, PolicyGateway
 from .ratelimit import install_rate_limit
 from .redact import redact
 
@@ -34,12 +36,39 @@ def _cors_origins() -> list[str]:
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
+def build_tool_policy() -> mcp_stateless.ToolPolicy:
+    """Bind the configured ZYKO-compatible gate to the stateless dispatcher."""
+    try:
+        gateway = PolicyGateway.from_env()
+    except (ConfigError, OSError, ValueError) as exc:
+        message = f"Policy configuration invalid: {exc}"
+
+        def deny_invalid(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+            _ = name, args
+            raise mcp_stateless.MCPError(
+                mcp_stateless.POLICY_DENIED, message, {"policy": "invalid"}
+            )
+
+        return deny_invalid
+
+    def enforce(name: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
+        try:
+            return gateway.enforce(name, args)
+        except PolicyDenied as exc:
+            raise mcp_stateless.MCPError(
+                mcp_stateless.POLICY_DENIED, exc.reason, {"rule": exc.rule}
+            ) from exc
+
+    return enforce
+
+
 def create_app(
     db_path: str | None = None, catalog: Catalog | None = None, api_key: str | None = None
 ):
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
     mcp_tools = catalog_tools.build_tools(catalog)
     mcp_resources = catalog_tools.build_resources(catalog)
+    tool_policy = build_tool_policy()
     app = FastAPI(title="mcp-hub", version=__version__, debug=False)
 
     # Middleware added later wraps earlier ones. Build inner->outer so the
@@ -280,6 +309,7 @@ def create_app(
                 resources=mcp_resources,
                 server_info={"name": "mcp-hub", "version": __version__},
                 instructions="Local MCP catalog. All tools are read-only.",
+                tool_policy=tool_policy,
             )
         if payload is None:
             return Response(status_code=status)

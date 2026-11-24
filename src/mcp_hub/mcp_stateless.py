@@ -15,6 +15,7 @@ import base64
 import binascii
 import hashlib
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -30,6 +31,7 @@ __all__ = [
     "HEADER_MISMATCH",
     "UNSUPPORTED_PROTOCOL_VERSION",
     "TOOL_MANIFEST_DRIFT",
+    "POLICY_DENIED",
     "MCPError",
     "HeaderMismatchError",
     "ToolSpec",
@@ -41,6 +43,7 @@ __all__ = [
     "server_meta",
     "tool_manifest_digest",
     "verify_tool_manifest",
+    "ToolPolicy",
     "handle",
 ]
 
@@ -72,8 +75,23 @@ MISSING_REQUIRED_CLIENT_CAPABILITY = -32021
 UNSUPPORTED_PROTOCOL_VERSION = -32022
 # Application-defined: outside JSON-RPC's reserved -32768..-32000 block.
 TOOL_MANIFEST_DRIFT = -10001
+POLICY_DENIED = -10002
+
+# Mirroring these in headers would leak or smuggle credentials past body-based
+# policy/redaction. They are rejected before any value comparison.
+SENSITIVE_PARAM_TOKENS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "credential",
+    "password",
+    "passwd",
+    "secret",
+    "token",
+)
 
 Handler = Callable[[Mapping[str, Any]], Any]
+ToolPolicy = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
 
 
 class MCPError(Exception):
@@ -353,6 +371,9 @@ def validate_request(
         key = name[len(HEADER_PARAM_PREFIX) :]
         if not key:
             raise HeaderMismatchError("Empty Mcp-Param header name")
+        normalized_key = re.sub(r"[^a-z0-9]", "_", key.lower())
+        if any(token in normalized_key for token in SENSITIVE_PARAM_TOKENS):
+            raise HeaderMismatchError(f"Sensitive parameter cannot be mirrored in headers: {name}")
         if key not in args or args[key] is None:
             raise HeaderMismatchError(f"Header mismatch: no body value for {name}")
         try:
@@ -379,6 +400,7 @@ def handle(
     prompts: Mapping[str, Handler] | None = None,
     server_info: Mapping[str, Any] | None = None,
     instructions: str = "",
+    tool_policy: ToolPolicy | None = None,
 ) -> tuple[int, dict[str, Any] | None]:
     """Handle one stateless JSON-RPC request.
 
@@ -428,11 +450,16 @@ def handle(
         arguments = params.get("arguments", {})
         if not isinstance(arguments, Mapping):
             raise MCPError(INVALID_PARAMS, "arguments must be an object")
-        handler = tools.get(name) if isinstance(name, str) else None
+        if not isinstance(name, str):
+            raise MCPError(INVALID_PARAMS, f"Unknown tool: {name}")
+        handler = tools.get(name)
         if handler is None:
             raise MCPError(INVALID_PARAMS, f"Unknown tool: {name}")
+        checked = dict(arguments)
+        if tool_policy is not None:
+            checked = dict(tool_policy(name, checked))
         try:
-            raw = handler(dict(arguments))
+            raw = handler(checked)
         except MCPError:
             raise
         except Exception as exc:  # noqa: BLE001 - a tool must not crash the dispatcher

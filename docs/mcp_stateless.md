@@ -29,6 +29,15 @@ a malformed value returns HTTP `400` with JSON-RPC error `-32020`
 
 Optional `Mcp-Param-{Name}` headers are validated when present: booleans use
 `true`/`false`, numbers are compared numerically, and strings must match exactly.
+Names containing `token`, `api_key`, `apikey`, `authorization`, `credential`,
+`password`, `passwd` or `secret` are rejected with `-32020`; credentials belong
+in the JSON body, never in mirrored headers.
+
+Every `tools/call` also passes through a ZYKO-compatible policy gate before its
+handler runs. Allow/deny rules and redaction are configured with
+`MCP_HUB_POLICY_FILE` / `MCP_HUB_POLICY_JSON`; a denial or an invalid policy
+returns application error `-10002` (`POLICY_DENIED`). See
+[Phase 2](phase2.md) for the full schema and audit format.
 
 ## Example
 

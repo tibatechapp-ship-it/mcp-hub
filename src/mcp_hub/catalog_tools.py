@@ -12,9 +12,17 @@ import json
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from . import catalog_query, doctor, provenance, taxonomy
+from . import (
+    catalog_query,
+    description_smells,
+    doctor,
+    policy_gateway,
+    provenance,
+    semantic_router,
+    taxonomy,
+)
 from .database import Catalog
-from .mcp_stateless import ResourceSpec, ToolSpec
+from .mcp_stateless import POLICY_DENIED, MCPError, ResourceSpec, ToolSpec
 
 __all__ = [
     "TOOL_SPECS",
@@ -22,11 +30,14 @@ __all__ = [
     "PINNED_TOOL_MANIFEST_SHA256",
     "build_tools",
     "build_resources",
+    "route_task",
+    "description_smell_audit",
+    "policy_snapshot",
 ]
 
 Handler = Callable[[Mapping[str, Any]], Any]
 
-PINNED_TOOL_MANIFEST_SHA256 = "cac6b4d1da32ba6c5ee9164100b0eb47208d25abbb457ced7ba5016a0d9fb687"
+PINNED_TOOL_MANIFEST_SHA256 = "6009656f1d4cc30fb9f079b8b6f2bdec01a04abfefc4099462f46998804d2857"
 
 
 def _object(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -110,6 +121,28 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
                 "limit": {"type": "integer", "minimum": 1, "maximum": 200},
             }
         ),
+    ),
+    ToolSpec(
+        name="route_task",
+        description="Rank catalog tools for an Arabic or English task; compact mode saves tokens.",
+        input_schema=_object(
+            {
+                "task": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                "compact": {"type": "boolean"},
+            },
+            ["task"],
+        ),
+    ),
+    ToolSpec(
+        name="description_smell_audit",
+        description="Audit bundled descriptions for six stable quality smells.",
+        input_schema=_object({"limit": {"type": "integer", "minimum": 1, "maximum": 200}}),
+    ),
+    ToolSpec(
+        name="policy_snapshot",
+        description="Show the active tool policy without secrets or audit paths.",
+        input_schema=_object({}),
     ),
 )
 
@@ -283,6 +316,26 @@ def query_catalog(args: Mapping[str, Any]) -> dict[str, Any]:
     )
 
 
+def route_task(args: Mapping[str, Any]) -> dict[str, Any]:
+    return semantic_router.route_task(
+        _string(args, "task"),
+        specs=TOOL_SPECS,
+        limit=_integer(args, "limit", 5),
+        compact=_boolean(args, "compact"),
+    )
+
+
+def description_smell_audit(args: Mapping[str, Any]) -> dict[str, Any]:
+    return description_smells.audit_registry(limit=_integer(args, "limit", 200))
+
+
+def policy_snapshot(_: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    try:
+        return policy_gateway.PolicyGateway.from_env().snapshot()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise MCPError(POLICY_DENIED, f"Policy configuration invalid: {exc}") from exc
+
+
 def build_tools(catalog: Catalog) -> dict[str, Handler]:
     """Bind the pinned tool contracts to read-only catalog handlers."""
 
@@ -327,6 +380,9 @@ def build_tools(catalog: Catalog) -> dict[str, Handler]:
         "doctor_report": doctor_handler,
         "suggest_category": suggest,
         "query_catalog": query_catalog,
+        "route_task": route_task,
+        "description_smell_audit": description_smell_audit,
+        "policy_snapshot": policy_snapshot,
     }
 
 
