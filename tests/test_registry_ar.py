@@ -38,9 +38,8 @@ def test_core_servers_are_present() -> None:
 
 def test_no_secret_values_in_env() -> None:
     servers = _data()["mcpServers"]
-    assert all(
-        value == "" for entry in servers.values() for value in entry["env"].values()
-    )
+    for entry in servers.values():
+        assert all(value == "" for value in entry["env"].values())
 
 
 def test_native_fields_are_unchanged() -> None:
