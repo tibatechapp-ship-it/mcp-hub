@@ -37,6 +37,7 @@ Repository = "https://github.com/tibatechapp-ship-it/mcp-hub"
 Issues = "https://github.com/tibatechapp-ship-it/mcp-hub/issues"
 Changelog = "https://github.com/tibatechapp-ship-it/mcp-hub/blob/main/CHANGELOG.md"
 Documentation = "https://tibatechapp-ship-it.github.io/mcp-hub/"
+"PEP 503 Index" = "https://tibatechapp-ship-it.github.io/mcp-hub/simple/"
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110,<1.0", "uvicorn>=0.27,<1.0"]

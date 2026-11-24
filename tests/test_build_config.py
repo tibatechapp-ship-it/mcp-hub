@@ -15,3 +15,13 @@ def test_docker_base_matches_ci_and_dependabot_policy() -> None:
     assert "FROM python:3.13-slim AS base" in dockerfile
     assert '"3.15-slim"' in dependabot  # still ignored as unreleased
     assert '"3.13"' in ci  # the claimed stable line is actually tested
+
+
+def test_release_attaches_checksums_and_docs_builds_simple_index() -> None:
+    release = (_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    docs = (_ROOT / ".github" / "workflows" / "docs.yml").read_text(encoding="utf-8")
+
+    assert "sha256sum *.whl *.tar.gz > SHA256SUMS" in release
+    assert "dist/SHA256SUMS" in release
+    assert "python scripts/generate_simple_index.py" in docs
+    assert "workflow_run:" in docs  # regenerate after GITHUB_TOKEN release creation
