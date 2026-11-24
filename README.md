@@ -18,7 +18,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.4.0
+- **Version:** 1.5.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -28,11 +28,12 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
 - **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`); tool names and `inputSchema` stay untouched and every failure fails open.
 
-**New in 1.4.0** — hardened for exposure beyond loopback: nonce-based CSP,
-multi-key auth with read-only keys, a 1 MiB body cap, rate limiting with a shared
-SQLite store, `backup`/`restore` with checksums and rollback, exact pagination,
-Prometheus `/metrics`, `X-Request-ID`, a real FTS5 search path, and a
-`mkdocs` documentation site. Full list: [CHANGELOG.md](CHANGELOG.md).
+**New in 1.5.0** — the Arabic registry and capability profiles, a stateless MCP
+core for the 2026-07-28 revision with an anti-rug-pull tool manifest, a
+bilingual policy/router layer, durable skills/tasks plus the MCP-Persona
+simulator, and dependency-free telemetry with opt-in OTel and sandboxed MCP
+Apps resources. Verified with 425 tests at 90.43% coverage. Full list:
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Why
 
