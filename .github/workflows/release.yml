@@ -37,6 +37,8 @@ jobs:
         run: python -m build
       - name: Check metadata
         run: python -m twine check dist/*
+      - name: Generate SHA256SUMS for anti-rug-pull
+        run: (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)
       - name: Verify wheel installs and runs
         run: |
           python -m venv /tmp/test-wheel
@@ -102,6 +104,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/SHA256SUMS
             sbom.spdx.json
           fail_on_unmatched_files: true
           # The release page is the first thing a user reads; let GitHub list

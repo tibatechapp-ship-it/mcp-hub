@@ -20,6 +20,21 @@ docker run --rm -v "$PWD/data:/data" -p 127.0.0.1:8000:8000 \
 The image runs as a non-root user, stores the database in `/data`, and has a
 `HEALTHCHECK` on `/api/health`.
 
+## PEP 503 index (GitHub Pages)
+
+A PyPI-compatible simple index is published at
+`https://tibatechapp-ship-it.github.io/mcp-hub/simple/`. It needs no PyPI
+account:
+
+```bash
+pip install --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ mcp-hub
+pip install --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ "mcp-hub==1.4.0"
+```
+
+Every artifact link carries a `#sha256=` fragment generated from the bytes of
+the GitHub Release asset. pip verifies that digest, so a replaced asset is
+rejected. Releases also attach `SHA256SUMS` for manual checks.
+
 ## Environment variables
 
 | Variable | Default | Meaning |
