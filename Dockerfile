@@ -32,6 +32,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY registry ./registry
+COPY profiles ./profiles
 # Keep the bundled packaging tools current — they ship in the runtime image
 # and Trivy audits them like any other package.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \

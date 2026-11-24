@@ -108,6 +108,28 @@ def cmd_sync_arabic(args):
     return 0
 
 
+def cmd_query_catalog(args):
+    from .catalog_query import query_catalog
+
+    try:
+        result = query_catalog(
+            kind=args.kind,
+            category=args.category,
+            tag=args.tag,
+            profile=args.profile,
+            access_mode=args.access_mode,
+            ready_only=args.ready_only,
+            limit=args.limit,
+            registry_path=args.registry,
+            profiles_dir=args.profiles_dir,
+        )
+    except (OSError, ValueError) as e:
+        print(f"query-catalog failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_import_text(args):
     db = _db(args)
     path = Path(args.file)
@@ -292,6 +314,23 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--upstream", default=None, help="Exact upstream default-branch registry URL")
     s.add_argument("--cache", default=None, help="Arabic runtime cache file")
     s.set_defaults(func=cmd_sync_arabic)
+
+    s = sub.add_parser("query-catalog", help="Query the bundled capability catalog")
+    s.add_argument("--kind", choices=["all", "server", "tool"], default="all")
+    s.add_argument("--category", default=None, help="Filter by server category")
+    s.add_argument("--tag", default=None, help="Filter by capability tag")
+    s.add_argument("--profile", default=None, help="Filter by task profile id")
+    s.add_argument(
+        "--access-mode",
+        choices=["read-only", "read-write"],
+        default=None,
+        help="Filter by access mode",
+    )
+    s.add_argument("--ready-only", action="store_true", help="Only show runnable entries")
+    s.add_argument("--limit", type=int, default=50)
+    s.add_argument("--registry", default=None, help="Override registry JSON path")
+    s.add_argument("--profiles-dir", default=None, help="Override task profiles directory")
+    s.set_defaults(func=cmd_query_catalog)
 
     s = sub.add_parser("import-text", help="Import from pipe-delimited text file")
     s.add_argument("file")

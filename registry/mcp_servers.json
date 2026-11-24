@@ -33,7 +33,19 @@
             "query": "كلمة البحث",
             "limit": "أقصى عدد للنتائج",
             "mode": "نمط البحث: contains أو fts"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "get_server",
@@ -41,12 +53,32 @@
           "description_ar": "يعيد السجل الكامل لخادم واحد مع بيانات الإثراء.",
           "params_ar": {
             "server_id": "المعرّف الرقمي للخادم"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_categories",
           "name_ar": "قائمة التصنيفات",
-          "description_ar": "يعيد التصنيفات مع عدد الخوادم في كل تصنيف."
+          "description_ar": "يعيد التصنيفات مع عدد الخوادم في كل تصنيف.",
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "servers_by_category",
@@ -55,7 +87,17 @@
           "params_ar": {
             "category": "اسم التصنيف",
             "limit": "أقصى عدد للنتائج"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "provenance_conflicts",
@@ -63,7 +105,17 @@
           "description_ar": "يحدد الحقول التي تختلف مصادرها لخادم واحد.",
           "params_ar": {
             "server_id": "المعرّف الرقمي للخادم"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "provenance_events",
@@ -72,12 +124,32 @@
           "params_ar": {
             "server_id": "المعرّف الرقمي للخادم",
             "limit": "عدد الأحداث"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "doctor_report",
           "name_ar": "تقرير صحة الفهرس",
-          "description_ar": "يشغّل فحوصات القراءة فقط ويعرض حالة قاعدة البيانات."
+          "description_ar": "يشغّل فحوصات القراءة فقط ويعرض حالة قاعدة البيانات.",
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "suggest_category",
@@ -85,10 +157,59 @@
           "description_ar": "يقترح تصنيفات لخادم باستخدام المصنّف الحتمي.",
           "params_ar": {
             "server_id": "المعرّف الرقمي للخادم"
-          }
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
+        },
+        {
+          "name": "query_catalog",
+          "name_ar": "الاستعلام عن الفهرس",
+          "description_ar": "يفلتر خوادم وأدوات الفهرس حسب التصنيف أو الوسم أو ملف المهمة أو مستوى الوصول أو الجاهزية.",
+          "params_ar": {
+            "kind": "نوع السجل: all أو server أو tool",
+            "category": "التصنيف مثل code أو database",
+            "tag": "وسم القدرة مثل diff أو rag-web-search",
+            "profile": "معرف ملف المهمة",
+            "access_mode": "read-only أو read-write",
+            "ready_only": "عرض السجلات الجاهزة فقط",
+            "limit": "أقصى عدد للنتائج"
+          },
+          "tags": [
+            "eval-observability",
+            "memory-context"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "automation-ops",
+            "code-review",
+            "docs-localization",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
       ],
-      "note_ar": "يوجد قالب التسجيل في examples/cursor-mcp.json؛ الخادم غير مسجّل حالياً في أي مضيف محلي."
+      "note_ar": "يوجد قالب التسجيل في examples/cursor-mcp.json؛ الخادم غير مسجّل حالياً في أي مضيف محلي.",
+      "tags": [
+        "eval-observability",
+        "memory-context",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "quality-security-audit",
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": []
     },
     "arabic-tools": {
       "id": "arabic-tools",
@@ -111,7 +232,16 @@
           "description_ar": "يعيد تحية عربية للاسم المحدد.",
           "params_ar": {
             "name": "الاسم"
-          }
+          },
+          "tags": [
+            "localization"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "prayer_times",
@@ -120,7 +250,16 @@
           "params_ar": {
             "city": "المدينة",
             "country": "البلد"
-          }
+          },
+          "tags": [
+            "localization"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "quran_search",
@@ -130,7 +269,17 @@
             "keyword": "كلمة البحث",
             "language": "لغة البحث",
             "limit": "عدد النتائج"
-          }
+          },
+          "tags": [
+            "localization",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "translate_to_arabic",
@@ -138,10 +287,29 @@
           "description_ar": "يترجم نصاً إنجليزياً إلى العربية.",
           "params_ar": {
             "text": "النص المطلوب ترجمته"
-          }
+          },
+          "tags": [
+            "localization"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
       ],
-      "note_ar": "موجود على الجهاز لكنه غير مسجّل في أي ملف mcp.json؛ يجب ضبط المسار المطلق قبل التشغيل."
+      "note_ar": "موجود على الجهاز لكنه غير مسجّل في أي ملف mcp.json؛ يجب ضبط المسار المطلق قبل التشغيل.",
+      "tags": [
+        "localization",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": []
     },
     "fast-anything": {
       "id": "fast-anything",
@@ -161,44 +329,160 @@
         {
           "name": "fast_scan",
           "name_ar": "فحص سريع",
-          "description_ar": "يفحص المشروع أو المسار المحدد."
+          "description_ar": "يفحص المشروع أو المسار المحدد.",
+          "tags": [
+            "execution",
+            "security-scan",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "fast_port",
           "name_ar": "فحص المنافذ",
-          "description_ar": "يفحص المنافذ المستخدمة أو المتاحة."
+          "description_ar": "يفحص المنافذ المستخدمة أو المتاحة.",
+          "tags": [
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "fast_verify",
           "name_ar": "تحقق",
-          "description_ar": "يتحقق من صحة الإعدادات أو النتائج."
+          "description_ar": "يتحقق من صحة الإعدادات أو النتائج.",
+          "tags": [
+            "eval-observability",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "fast_enable",
           "name_ar": "تفعيل",
-          "description_ar": "يفعّل ميزة أو مكوّناً."
+          "description_ar": "يفعّل ميزة أو مكوّناً.",
+          "tags": [
+            "action-execution",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "fast_disable",
           "name_ar": "تعطيل",
-          "description_ar": "يعطّل ميزة أو مكوّناً."
+          "description_ar": "يعطّل ميزة أو مكوّناً.",
+          "tags": [
+            "action-execution",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "fast_bench",
           "name_ar": "قياس الأداء",
-          "description_ar": "يقيس زمن التنفيذ أو الأداء."
+          "description_ar": "يقيس زمن التنفيذ أو الأداء.",
+          "tags": [
+            "eval-observability",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "fast_report",
           "name_ar": "تقرير",
-          "description_ar": "ينشئ تقريراً عن نتائج الفحص."
+          "description_ar": "ينشئ تقريراً عن نتائج الفحص.",
+          "tags": [
+            "eval-observability",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "fast_status",
           "name_ar": "الحالة",
-          "description_ar": "يعيد الحالة الحالية للأداة."
+          "description_ar": "يعيد الحالة الحالية للأداة.",
+          "tags": [
+            "eval-observability",
+            "execution",
+            "static-analysis"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "eval-observability",
+        "execution",
+        "security-scan",
+        "static-analysis"
+      ],
+      "task_profiles": [
+        "code-review",
+        "ai-agent-builder",
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "cua-driver-fixture": {
       "id": "cua-driver-fixture",
@@ -214,40 +498,128 @@
         {
           "name": "list_apps",
           "name_ar": "قائمة التطبيقات",
-          "description_ar": "اختبار: سرد التطبيقات المتاحة."
+          "description_ar": "اختبار: سرد التطبيقات المتاحة.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_windows",
           "name_ar": "قائمة النوافذ",
-          "description_ar": "اختبار: سرد النوافذ المفتوحة."
+          "description_ar": "اختبار: سرد النوافذ المفتوحة.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "get_window_state",
           "name_ar": "حالة النافذة",
-          "description_ar": "اختبار: قراءة حالة نافذة."
+          "description_ar": "اختبار: قراءة حالة نافذة.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "launch_app",
           "name_ar": "تشغيل تطبيق",
-          "description_ar": "اختبار: تشغيل تطبيق."
+          "description_ar": "اختبار: تشغيل تطبيق.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "click",
           "name_ar": "نقر",
-          "description_ar": "اختبار: النقر على عنصر."
+          "description_ar": "اختبار: النقر على عنصر.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "type_text",
           "name_ar": "إدخال نص",
-          "description_ar": "اختبار: كتابة نص."
+          "description_ar": "اختبار: كتابة نص.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "press_key",
           "name_ar": "ضغط مفتاح",
-          "description_ar": "اختبار: الضغط على مفتاح."
+          "description_ar": "اختبار: الضغط على مفتاح.",
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
       ],
-      "note_ar": "أُدرج للجرد فقط ومعطّل؛ لا يعمل كخادم MCP مستقل."
+      "note_ar": "أُدرج للجرد فقط ومعطّل؛ لا يعمل كخادم MCP مستقل.",
+      "tags": [
+        "action-execution",
+        "execution"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "github": {
       "id": "github",
@@ -283,7 +655,18 @@
             "repo": "المستودع",
             "path": "المسار",
             "ref": "الفرع أو الالتزام"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "list_commits",
@@ -293,7 +676,18 @@
             "owner": "المالك",
             "repo": "المستودع",
             "sha": "الفرع أو الالتزام"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "search_repositories",
@@ -301,7 +695,20 @@
           "description_ar": "يبحث عن مستودعات GitHub.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "execution",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "search_code",
@@ -309,7 +716,20 @@
           "description_ar": "يبحث عن كود داخل المستودعات.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "execution",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "list_issues",
@@ -319,7 +739,18 @@
             "owner": "المالك",
             "repo": "المستودع",
             "state": "الحالة"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "create_issue",
@@ -329,7 +760,20 @@
             "owner": "المالك",
             "repo": "المستودع",
             "title": "العنوان"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "list_pull_requests",
@@ -339,7 +783,18 @@
             "owner": "المالك",
             "repo": "المستودع",
             "state": "الحالة"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "create_pull_request",
@@ -351,7 +806,20 @@
             "head": "الفرع المصدر",
             "base": "الفرع الهدف",
             "title": "العنوان"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "merge_pull_request",
@@ -361,13 +829,54 @@
             "owner": "المالك",
             "repo": "المستودع",
             "pullNumber": "رقم الطلب"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "get_me",
           "name_ar": "بيانات الحساب",
-          "description_ar": "يعيد بيانات المستخدم المصادّق عليه."
+          "description_ar": "يعيد بيانات المستخدم المصادّق عليه.",
+          "tags": [
+            "eval-observability",
+            "execution"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ]
         }
+      ],
+      "tags": [
+        "action-execution",
+        "eval-observability",
+        "execution",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
       ]
     },
     "git": {
@@ -394,7 +903,20 @@
         {
           "name": "git_status",
           "name_ar": "حالة المستودع",
-          "description_ar": "يعيد حالة ملفات المستودع."
+          "description_ar": "يعيد حالة ملفات المستودع.",
+          "tags": [
+            "diff",
+            "eval-observability",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "git_add",
@@ -402,7 +924,20 @@
           "description_ar": "يضيف ملفات إلى منطقة التجهيز.",
           "params_ar": {
             "files": "قائمة المسارات"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_commit",
@@ -410,12 +945,36 @@
           "description_ar": "ينشئ التزاماً بالرسالة المحددة.",
           "params_ar": {
             "message": "رسالة الالتزام"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_log",
           "name_ar": "سجل الالتزامات",
-          "description_ar": "يعرض سجل الالتزامات."
+          "description_ar": "يعرض سجل الالتزامات.",
+          "tags": [
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "git_diff",
@@ -423,12 +982,34 @@
           "description_ar": "يعرض الفروق بين التغييرات.",
           "params_ar": {
             "target": "الهدف للمقارنة"
-          }
+          },
+          "tags": [
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "git_branch",
           "name_ar": "قائمة الفروع",
-          "description_ar": "يعرض الفروع المحلية."
+          "description_ar": "يعرض الفروع المحلية.",
+          "tags": [
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "git_checkout",
@@ -436,7 +1017,20 @@
           "description_ar": "ينتقل إلى فرع أو التزام.",
           "params_ar": {
             "ref": "اسم الفرع أو الالتزام"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_show",
@@ -444,7 +1038,18 @@
           "description_ar": "يعرض تفاصيل التزام محدد.",
           "params_ar": {
             "ref": "معرّف الالتزام"
-          }
+          },
+          "tags": [
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "git_init",
@@ -452,17 +1057,56 @@
           "description_ar": "ينشئ مستودع Git جديداً.",
           "params_ar": {
             "path": "مسار المستودع"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_push",
           "name_ar": "دفع التغييرات",
-          "description_ar": "يدفع الالتزامات إلى المستودع البعيد."
+          "description_ar": "يدفع الالتزامات إلى المستودع البعيد.",
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_pull",
           "name_ar": "سحب التغييرات",
-          "description_ar": "يحدّث المستودع من المصدر البعيد."
+          "description_ar": "يحدّث المستودع من المصدر البعيد.",
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "git_clone",
@@ -470,9 +1114,36 @@
           "description_ar": "يستنسخ مستودعاً بعيداً.",
           "params_ar": {
             "url": "رابط المستودع"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "diff",
+            "execution"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "diff",
+        "eval-observability",
+        "execution"
+      ],
+      "task_profiles": [
+        "code-review",
+        "ai-agent-builder",
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "serena": {
       "id": "serena",
@@ -501,7 +1172,19 @@
           "params_ar": {
             "name": "اسم الرمز",
             "path": "مسار الملف"
-          }
+          },
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "find_referencing_symbols",
@@ -509,7 +1192,19 @@
           "description_ar": "يجد كل الرموز التي تشير إلى رمز محدد.",
           "params_ar": {
             "name": "اسم الرمز"
-          }
+          },
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "get_symbols_overview",
@@ -517,12 +1212,36 @@
           "description_ar": "يعرض رموز ملف أو مجلد.",
           "params_ar": {
             "path": "المسار"
-          }
+          },
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_memories",
           "name_ar": "قائمة الملاحظات",
-          "description_ar": "يعرض ملاحظات المشروع المحفوظة."
+          "description_ar": "يعرض ملاحظات المشروع المحفوظة.",
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "read_memory",
@@ -530,7 +1249,19 @@
           "description_ar": "يقرأ ملاحظة محفوظة.",
           "params_ar": {
             "name": "اسم الملاحظة"
-          }
+          },
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "write_memory",
@@ -539,7 +1270,22 @@
           "params_ar": {
             "name": "اسم الملاحظة",
             "content": "المحتوى"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "activate_project",
@@ -547,7 +1293,19 @@
           "description_ar": "يضبط المشروع الحالي للتحليل.",
           "params_ar": {
             "path": "مسار المشروع"
-          }
+          },
+          "tags": [
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "execute_shell_command",
@@ -555,9 +1313,39 @@
           "description_ar": "ينفّذ أمراً في بيئة المشروع.",
           "params_ar": {
             "command": "الأمر"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "memory-context",
+            "static-analysis",
+            "symbol-search"
+          ],
+          "task_profiles": [
+            "code-review",
+            "ai-agent-builder",
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "execution",
+        "memory-context",
+        "static-analysis",
+        "symbol-search"
+      ],
+      "task_profiles": [
+        "code-review",
+        "ai-agent-builder",
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "context7": {
       "id": "context7",
@@ -582,7 +1370,18 @@
           "description_ar": "يحوّل اسم مكتبة إلى معرّف مستقر في الوثائق.",
           "params_ar": {
             "libraryName": "اسم المكتبة"
-          }
+          },
+          "tags": [
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "CONTEXT7_API_KEY"
+          ]
         },
         {
           "name": "get-library-docs",
@@ -591,8 +1390,30 @@
           "params_ar": {
             "context7CompatibleLibraryID": "معرّف المكتبة",
             "topic": "الموضوع"
-          }
+          },
+          "tags": [
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "CONTEXT7_API_KEY"
+          ]
         }
+      ],
+      "tags": [
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": [
+        "CONTEXT7_API_KEY"
       ]
     },
     "supabase": {
@@ -615,7 +1436,17 @@
         {
           "name": "list_projects",
           "name_ar": "قائمة المشاريع",
-          "description_ar": "يعرض مشاريع Supabase المتاحة."
+          "description_ar": "يعرض مشاريع Supabase المتاحة.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "get_project",
@@ -623,7 +1454,17 @@
           "description_ar": "يعيد بيانات مشروع محدد.",
           "params_ar": {
             "project_id": "معرّف المشروع"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "list_tables",
@@ -631,7 +1472,17 @@
           "description_ar": "يعرض جداول قاعدة بيانات المشروع.",
           "params_ar": {
             "project_id": "معرّف المشروع"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "execute_sql",
@@ -640,7 +1491,18 @@
           "params_ar": {
             "project_id": "معرّف المشروع",
             "query": "الاستعلام"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "apply_migration",
@@ -650,13 +1512,45 @@
             "project_id": "معرّف المشروع",
             "name": "اسم الترحيل",
             "query": "الاستعلام"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         },
         {
           "name": "list_extensions",
           "name_ar": "قائمة الإضافات",
-          "description_ar": "يعرض إضافات PostgreSQL المفعّلة."
+          "description_ar": "يعرض إضافات PostgreSQL المفعّلة.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "SUPABASE_ACCESS_TOKEN"
+          ]
         }
+      ],
+      "tags": [
+        "action-execution",
+        "execution"
+      ],
+      "task_profiles": [
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": [
+        "SUPABASE_ACCESS_TOKEN"
       ]
     },
     "postgres": {
@@ -687,12 +1581,32 @@
           "description_ar": "ينفّذ استعلام SQL ويعيد الصفوف.",
           "params_ar": {
             "sql": "استعلام SQL"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "POSTGRES_CONNECTION_STRING"
+          ]
         },
         {
           "name": "list_tables",
           "name_ar": "قائمة الجداول",
-          "description_ar": "يعرض جداول المخطط العام."
+          "description_ar": "يعرض جداول المخطط العام.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "POSTGRES_CONNECTION_STRING"
+          ]
         },
         {
           "name": "describe_table",
@@ -700,10 +1614,30 @@
           "description_ar": "يعرض أعمدة جدول وقيوده.",
           "params_ar": {
             "table": "اسم الجدول"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "POSTGRES_CONNECTION_STRING"
+          ]
         }
       ],
-      "note_ar": "استبدل قيمة الاتصال في args بمسارك الخاص؛ لا تضع بيانات حقيقية في هذا الملف."
+      "note_ar": "استبدل قيمة الاتصال في args بمسارك الخاص؛ لا تضع بيانات حقيقية في هذا الملف.",
+      "tags": [
+        "execution"
+      ],
+      "task_profiles": [
+        "automation-ops"
+      ],
+      "access_mode": "read-only",
+      "requires_env": [
+        "POSTGRES_CONNECTION_STRING"
+      ]
     },
     "sqlite": {
       "id": "sqlite",
@@ -732,7 +1666,15 @@
           "description_ar": "ينفّذ استعلام SELECT.",
           "params_ar": {
             "sql": "استعلام SQL"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "write_query",
@@ -740,7 +1682,16 @@
           "description_ar": "ينفّذ INSERT أو UPDATE أو DELETE.",
           "params_ar": {
             "sql": "استعلام SQL"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "create_table",
@@ -748,12 +1699,29 @@
           "description_ar": "ينشئ جدولاً جديداً.",
           "params_ar": {
             "sql": "تعريف الجدول"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "list_tables",
           "name_ar": "قائمة الجداول",
-          "description_ar": "يعرض أسماء الجداول."
+          "description_ar": "يعرض أسماء الجداول.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "describe_table",
@@ -761,7 +1729,15 @@
           "description_ar": "يعرض بنية جدول.",
           "params_ar": {
             "table": "اسم الجدول"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "append_insight",
@@ -769,9 +1745,27 @@
           "description_ar": "يضيف ملاحظة إلى سجل الرؤى.",
           "params_ar": {
             "insight": "الملاحظة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "execution"
+      ],
+      "task_profiles": [
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "dbhub": {
       "id": "dbhub",
@@ -802,12 +1796,33 @@
           "description_ar": "ينفّذ استعلام SQL على الاتصال المحدد.",
           "params_ar": {
             "sql": "الاستعلام"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": [
+            "DBHUB_DSN"
+          ]
         },
         {
           "name": "list_tables",
           "name_ar": "قائمة الجداول",
-          "description_ar": "يعرض جداول قاعدة البيانات."
+          "description_ar": "يعرض جداول قاعدة البيانات.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "DBHUB_DSN"
+          ]
         },
         {
           "name": "describe_table",
@@ -815,7 +1830,17 @@
           "description_ar": "يعرض بنية جدول.",
           "params_ar": {
             "table": "اسم الجدول"
-          }
+          },
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "DBHUB_DSN"
+          ]
         },
         {
           "name": "search_objects",
@@ -823,13 +1848,46 @@
           "description_ar": "يبحث عن جداول أو كائنات بالاسم.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "execution",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "DBHUB_DSN"
+          ]
         },
         {
           "name": "list_connections",
           "name_ar": "قائمة الاتصالات",
-          "description_ar": "يعرض اتصالات قواعد البيانات المضبوطة."
+          "description_ar": "يعرض اتصالات قواعد البيانات المضبوطة.",
+          "tags": [
+            "execution"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "DBHUB_DSN"
+          ]
         }
+      ],
+      "tags": [
+        "action-execution",
+        "execution",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": [
+        "DBHUB_DSN"
       ]
     },
     "playwright": {
@@ -859,7 +1917,18 @@
           "description_ar": "يفتح عنوان URL في المتصفح.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_click",
@@ -867,7 +1936,18 @@
           "description_ar": "ينقر على عنصر في الصفحة.",
           "params_ar": {
             "element": "وصف العنصر"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_type",
@@ -875,22 +1955,62 @@
           "description_ar": "يكتب نصاً في حقل إدخال.",
           "params_ar": {
             "text": "النص"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_snapshot",
           "name_ar": "لقطة بنية الصفحة",
-          "description_ar": "يعيد تمثيلاً نصياً لبنية الصفحة."
+          "description_ar": "يعيد تمثيلاً نصياً لبنية الصفحة.",
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "browser_take_screenshot",
           "name_ar": "لقطة شاشة",
-          "description_ar": "يحفظ لقطة شاشة للصفحة."
+          "description_ar": "يحفظ لقطة شاشة للصفحة.",
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "browser_tabs",
           "name_ar": "إدارة التبويبات",
-          "description_ar": "يسرد التبويبات أو يبدّل بينها."
+          "description_ar": "يسرد التبويبات أو يبدّل بينها.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_evaluate",
@@ -898,12 +2018,34 @@
           "description_ar": "ينفّذ تعبير JavaScript في الصفحة.",
           "params_ar": {
             "function": "الدالة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_fill_form",
           "name_ar": "تعبئة نموذج",
-          "description_ar": "يملأ عدة حقول في نموذج."
+          "description_ar": "يملأ عدة حقول في نموذج.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_press_key",
@@ -911,7 +2053,18 @@
           "description_ar": "يضغط مفتاح لوحة المفاتيح.",
           "params_ar": {
             "key": "المفتاح"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "browser_wait_for",
@@ -919,24 +2072,78 @@
           "description_ar": "ينتظر ظهور عنصر أو انقضاء زمن.",
           "params_ar": {
             "time": "الزمن بالثواني"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "browser_network_requests",
           "name_ar": "طلبات الشبكة",
-          "description_ar": "يعيد طلبات الشبكة المسجلة."
+          "description_ar": "يعيد طلبات الشبكة المسجلة.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "eval-observability"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "browser_console_messages",
           "name_ar": "رسائل الوحدة",
-          "description_ar": "يعيد رسائل وحدة تحكم المتصفح."
+          "description_ar": "يعيد رسائل وحدة تحكم المتصفح.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "eval-observability"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "browser_close",
           "name_ar": "إغلاق المتصفح",
-          "description_ar": "يغلق جلسة المتصفح."
+          "description_ar": "يغلق جلسة المتصفح.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "browser-web",
+        "eval-observability",
+        "execution"
+      ],
+      "task_profiles": [
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "chrome-devtools": {
       "id": "chrome-devtools",
@@ -962,7 +2169,16 @@
         {
           "name": "list_pages",
           "name_ar": "قائمة الصفحات",
-          "description_ar": "يعرض الصفحات المفتوحة."
+          "description_ar": "يعرض الصفحات المفتوحة.",
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "new_page",
@@ -970,7 +2186,18 @@
           "description_ar": "يفتح صفحة جديدة.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "select_page",
@@ -978,7 +2205,18 @@
           "description_ar": "يحدد الصفحة النشطة.",
           "params_ar": {
             "pageIdx": "رقم الصفحة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "close_page",
@@ -986,7 +2224,18 @@
           "description_ar": "يغلق صفحة محددة.",
           "params_ar": {
             "pageIdx": "رقم الصفحة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "navigate_page",
@@ -994,17 +2243,46 @@
           "description_ar": "ينقل الصفحة إلى عنوان جديد.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "take_snapshot",
           "name_ar": "لقطة بنية الصفحة",
-          "description_ar": "يعيد تمثيلاً نصياً للصفحة."
+          "description_ar": "يعيد تمثيلاً نصياً للصفحة.",
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "take_screenshot",
           "name_ar": "لقطة شاشة",
-          "description_ar": "يحفظ لقطة شاشة للصفحة."
+          "description_ar": "يحفظ لقطة شاشة للصفحة.",
+          "tags": [
+            "action-execution",
+            "browser-web"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "click",
@@ -1012,7 +2290,18 @@
           "description_ar": "ينقر على عنصر.",
           "params_ar": {
             "uid": "معرّف العنصر"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "fill",
@@ -1021,7 +2310,18 @@
           "params_ar": {
             "uid": "معرّف العنصر",
             "value": "القيمة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "hover",
@@ -1029,7 +2329,18 @@
           "description_ar": "يمرر المؤشر فوق عنصر.",
           "params_ar": {
             "uid": "معرّف العنصر"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "press_key",
@@ -1037,7 +2348,18 @@
           "description_ar": "يضغط مفتاحاً.",
           "params_ar": {
             "key": "المفتاح"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "evaluate_script",
@@ -1045,24 +2367,81 @@
           "description_ar": "ينفّذ JavaScript في الصفحة.",
           "params_ar": {
             "function": "الدالة"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "list_network_requests",
           "name_ar": "طلبات الشبكة",
-          "description_ar": "يعيد طلبات الشبكة."
+          "description_ar": "يعيد طلبات الشبكة.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "eval-observability"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_console_messages",
           "name_ar": "رسائل الوحدة",
-          "description_ar": "يعيد رسائل وحدة التحكم."
+          "description_ar": "يعيد رسائل وحدة التحكم.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "eval-observability"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "performance_start_trace",
           "name_ar": "بدء قياس الأداء",
-          "description_ar": "يبدأ تسجيل أثر الأداء."
+          "description_ar": "يبدأ تسجيل أثر الأداء.",
+          "tags": [
+            "action-execution",
+            "browser-web",
+            "eval-observability",
+            "execution"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "browser-web",
+        "eval-observability",
+        "execution"
+      ],
+      "task_profiles": [
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "firecrawl": {
       "id": "firecrawl",
@@ -1091,7 +2470,18 @@
           "description_ar": "يحول صفحة واحدة إلى markdown أو بيانات منظمة.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         },
         {
           "name": "firecrawl_crawl",
@@ -1100,7 +2490,18 @@
           "params_ar": {
             "url": "الرابط",
             "limit": "أقصى عدد صفحات"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         },
         {
           "name": "firecrawl_search",
@@ -1108,7 +2509,18 @@
           "description_ar": "يبحث في الويب ويعيد نتائج غنية.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         },
         {
           "name": "firecrawl_extract",
@@ -1116,7 +2528,18 @@
           "description_ar": "يستخرج حقولاً منظمة من صفحات.",
           "params_ar": {
             "urls": "قائمة الروابط"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         },
         {
           "name": "firecrawl_map",
@@ -1124,7 +2547,18 @@
           "description_ar": "يعيد روابط موقع.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         },
         {
           "name": "firecrawl_check_crawl_status",
@@ -1132,8 +2566,33 @@
           "description_ar": "يتحقق من حالة مهمة زحف.",
           "params_ar": {
             "id": "معرّف المهمة"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "eval-observability",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "quality-security-audit"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "FIRECRAWL_API_KEY"
+          ]
         }
+      ],
+      "tags": [
+        "browser-web",
+        "eval-observability",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-only",
+      "requires_env": [
+        "FIRECRAWL_API_KEY"
       ]
     },
     "fetch": {
@@ -1158,9 +2617,29 @@
           "description_ar": "يجلب محتوى رابط ويعيده كنص.",
           "params_ar": {
             "url": "الرابط"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "browser-web",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": []
     },
     "brave-search": {
       "id": "brave-search",
@@ -1189,7 +2668,19 @@
           "description_ar": "يبحث في الويب ويعيد العناوين والمقتطفات.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "BRAVE_API_KEY"
+          ]
         },
         {
           "name": "brave_local_search",
@@ -1197,8 +2688,32 @@
           "description_ar": "يبحث في الأعمال والمواقع المحلية.",
           "params_ar": {
             "query": "عبارة البحث"
-          }
+          },
+          "tags": [
+            "browser-web",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "ai-agent-builder",
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": [
+            "BRAVE_API_KEY"
+          ]
         }
+      ],
+      "tags": [
+        "browser-web",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "ai-agent-builder",
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": [
+        "BRAVE_API_KEY"
       ]
     },
     "filesystem": {
@@ -1227,7 +2742,17 @@
           "description_ar": "يقرأ محتوى ملف نصي.",
           "params_ar": {
             "path": "مسار الملف"
-          }
+          },
+          "tags": [
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "read_multiple_files",
@@ -1235,7 +2760,17 @@
           "description_ar": "يقرأ عدة ملفات في طلب واحد.",
           "params_ar": {
             "paths": "قائمة المسارات"
-          }
+          },
+          "tags": [
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "write_file",
@@ -1244,7 +2779,18 @@
           "params_ar": {
             "path": "مسار الملف",
             "content": "المحتوى"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "edit_file",
@@ -1252,7 +2798,18 @@
           "description_ar": "يعدّل جزءاً من ملف.",
           "params_ar": {
             "path": "مسار الملف"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "list_directory",
@@ -1260,7 +2817,17 @@
           "description_ar": "يعيد محتويات مجلد.",
           "params_ar": {
             "path": "مسار المجلد"
-          }
+          },
+          "tags": [
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "create_directory",
@@ -1268,7 +2835,18 @@
           "description_ar": "ينشئ مجلداً جديداً.",
           "params_ar": {
             "path": "مسار المجلد"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "move_file",
@@ -1277,7 +2855,18 @@
           "params_ar": {
             "source": "المصدر",
             "destination": "الهدف"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "search_files",
@@ -1286,7 +2875,18 @@
           "params_ar": {
             "path": "مسار البحث",
             "pattern": "نمط الاسم"
-          }
+          },
+          "tags": [
+            "execution",
+            "files-system",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "get_file_info",
@@ -1294,14 +2894,46 @@
           "description_ar": "يعيد بيانات ملف أو مجلد.",
           "params_ar": {
             "path": "المسار"
-          }
+          },
+          "tags": [
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_allowed_directories",
           "name_ar": "المجلدات المسموحة",
-          "description_ar": "يعرض المسارات المسموح بالوصول إليها."
+          "description_ar": "يعرض المسارات المسموح بالوصول إليها.",
+          "tags": [
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "execution",
+        "files-system",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "desktop-commander": {
       "id": "desktop-commander",
@@ -1325,7 +2957,18 @@
           "description_ar": "يقرأ ملفاً نصياً.",
           "params_ar": {
             "path": "مسار الملف"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "write_file",
@@ -1334,7 +2977,18 @@
           "params_ar": {
             "path": "مسار الملف",
             "content": "المحتوى"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "edit_block",
@@ -1342,7 +2996,18 @@
           "description_ar": "يستبدل مقطعاً محدداً داخل ملف.",
           "params_ar": {
             "path": "مسار الملف"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "create_directory",
@@ -1350,7 +3015,18 @@
           "description_ar": "ينشئ مجلداً.",
           "params_ar": {
             "path": "مسار المجلد"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "move_file",
@@ -1359,7 +3035,18 @@
           "params_ar": {
             "source": "المصدر",
             "destination": "الهدف"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "list_directory",
@@ -1367,7 +3054,18 @@
           "description_ar": "يعيد محتويات مجلد.",
           "params_ar": {
             "path": "مسار المجلد"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "search_files",
@@ -1376,7 +3074,19 @@
           "params_ar": {
             "path": "المسار",
             "pattern": "النمط"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system",
+            "rag-web-search"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "start_process",
@@ -1384,7 +3094,18 @@
           "description_ar": "يشغّل أمراً في الخلفية.",
           "params_ar": {
             "command": "الأمر"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "interact_with_process",
@@ -1392,7 +3113,18 @@
           "description_ar": "يرسل مدخلاً إلى عملية شغّالة.",
           "params_ar": {
             "pid": "معرّف العملية"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         },
         {
           "name": "read_process_output",
@@ -1400,12 +3132,34 @@
           "description_ar": "يقرأ مخرجات عملية.",
           "params_ar": {
             "pid": "معرّف العملية"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "list_processes",
           "name_ar": "قائمة العمليات",
-          "description_ar": "يعرض العمليات الشغّالة."
+          "description_ar": "يعرض العمليات الشغّالة.",
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         },
         {
           "name": "kill_process",
@@ -1413,9 +3167,32 @@
           "description_ar": "يوقف عملية محددة.",
           "params_ar": {
             "pid": "معرّف العملية"
-          }
+          },
+          "tags": [
+            "action-execution",
+            "execution",
+            "files-system"
+          ],
+          "task_profiles": [
+            "quality-security-audit",
+            "automation-ops"
+          ],
+          "access_mode": "read-write",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "action-execution",
+        "execution",
+        "files-system",
+        "rag-web-search"
+      ],
+      "task_profiles": [
+        "quality-security-audit",
+        "automation-ops"
+      ],
+      "access_mode": "read-write",
+      "requires_env": []
     },
     "markitdown": {
       "id": "markitdown",
@@ -1438,9 +3215,27 @@
           "description_ar": "يحوّل ملفاً إلى Markdown.",
           "params_ar": {
             "path": "مسار الملف أو الرابط"
-          }
+          },
+          "tags": [
+            "execution",
+            "localization"
+          ],
+          "task_profiles": [
+            "docs-localization"
+          ],
+          "access_mode": "read-only",
+          "requires_env": []
         }
-      ]
+      ],
+      "tags": [
+        "execution",
+        "localization"
+      ],
+      "task_profiles": [
+        "docs-localization"
+      ],
+      "access_mode": "read-only",
+      "requires_env": []
     }
   }
 }

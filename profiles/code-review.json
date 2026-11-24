@@ -1,0 +1,44 @@
+{
+  "profile_id": "code-review",
+  "title_ar": "مراجعة الكود",
+  "description_ar": "مراجعة الفروق والرموز وجودة التغييرات دون تعديل المستودع أو تنفيذ أوامر.",
+  "default_access_mode": "read-only",
+  "allowed_categories": [
+    "catalog",
+    "code",
+    "files"
+  ],
+  "preferred_tags": [
+    "diff",
+    "symbol-search",
+    "static-analysis",
+    "eval-observability"
+  ],
+  "steps": [
+    {
+      "step_id": "collect_diff",
+      "title_ar": "جمع الفروق والسياق",
+      "tool_tags": [
+        "diff"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "map_symbols",
+      "title_ar": "ربط الرموز والمراجع",
+      "tool_tags": [
+        "symbol-search",
+        "static-analysis"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "report_findings",
+      "title_ar": "تلخيص الملاحظات",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    }
+  ]
+}

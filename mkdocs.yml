@@ -16,6 +16,7 @@ nav:
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md
+  - Arabic task profiles: task_profiles_ar.md
 markdown_extensions:
   - admonition
   - tables

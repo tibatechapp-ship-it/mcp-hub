@@ -1,0 +1,46 @@
+{
+  "profile_id": "quality-security-audit",
+  "title_ar": "تدقيق الجودة والأمان",
+  "description_ar": "فحص الكود والملفات والمتصفح بحثاً عن المخاطر ومؤشرات الجودة دون تعديل البيانات.",
+  "default_access_mode": "read-only",
+  "allowed_categories": [
+    "browser",
+    "catalog",
+    "code",
+    "files"
+  ],
+  "preferred_tags": [
+    "security-scan",
+    "static-analysis",
+    "eval-observability",
+    "execution"
+  ],
+  "steps": [
+    {
+      "step_id": "scan_surface",
+      "title_ar": "مسح سطح الفحص",
+      "tool_tags": [
+        "security-scan",
+        "static-analysis"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "inspect_behaviour",
+      "title_ar": "فحص السلوك",
+      "tool_tags": [
+        "execution",
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    },
+    {
+      "step_id": "summarise_risks",
+      "title_ar": "تلخيص المخاطر",
+      "tool_tags": [
+        "eval-observability"
+      ],
+      "access_mode": "read-only"
+    }
+  ]
+}
