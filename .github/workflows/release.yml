@@ -19,11 +19,46 @@ jobs:
       - run: pip install -e ".[dev,api]"
       - run: pytest -q
 
-  publish-image:
-    needs: test
+  # Build the distributables once, here, so release.yml is the single owner of
+  # the GitHub Release and its assets. publish.yml keeps its own build+verify
+  # lane (its PyPI job is deferred); no cross-workflow race on release creation.
+  build-dist:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # upload the SBOM as a release asset
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: python -m pip install --upgrade build twine
+      - name: Build sdist + wheel
+        run: python -m build
+      - name: Check metadata
+        run: python -m twine check dist/*
+      - name: Verify wheel installs and runs
+        run: |
+          python -m venv /tmp/test-wheel
+          /tmp/test-wheel/bin/pip install --quiet dist/*.whl
+          /tmp/test-wheel/bin/mcp-hub --version
+          /tmp/test-wheel/bin/python -c "import mcp_hub; print(mcp_hub.__version__)"
+      - name: Verify sdist installs
+        run: |
+          python -m venv /tmp/test-sdist
+          /tmp/test-sdist/bin/pip install --quiet dist/*.tar.gz
+          /tmp/test-sdist/bin/mcp-hub --version
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-image:
+    needs: [test, build-dist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload release assets
       packages: write # push to ghcr.io
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,11 +89,20 @@ jobs:
           output-file: sbom.spdx.json
           artifact-name: sbom.spdx.json
 
-      - name: Attach SBOM to the release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      # One workflow owns release creation: attach wheel + sdist + SBOM together.
+      - name: Attach packages and SBOM to the release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ github.ref_name }}
-          files: sbom.spdx.json
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            sbom.spdx.json
           fail_on_unmatched_files: true
           # The release page is the first thing a user reads; let GitHub list
           # the merged PRs instead of shipping an empty body.
