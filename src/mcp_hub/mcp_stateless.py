@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
+from .telemetry import TelemetryAdapter, TraceContext, span_name, tool_attributes
+
 __all__ = [
     "JSONRPC_VERSION",
     "MCP_PROTOCOL_VERSION",
@@ -46,6 +48,8 @@ __all__ = [
     "tool_manifest_digest",
     "verify_tool_manifest",
     "ToolPolicy",
+    "AppPolicy",
+    "APP_RESOURCE_PREFIX",
     "handle",
 ]
 
@@ -63,6 +67,7 @@ HEADER_METHOD = "mcp-method"
 HEADER_NAME = "mcp-name"
 HEADER_PARAM_PREFIX = "mcp-param-"
 SKILL_RESOURCE_PREFIX = "mcp-hub://skills/"
+APP_RESOURCE_PREFIX = "ui://"
 
 # Methods that must mirror their identifying parameter in ``Mcp-Name``.
 NAME_HEADERS_PARAMS: Mapping[str, str] = MappingProxyType(
@@ -110,6 +115,7 @@ SENSITIVE_PARAM_TOKENS = (
 
 Handler = Callable[[Mapping[str, Any]], Any]
 ToolPolicy = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
+AppPolicy = Callable[[str, Mapping[str, Any]], None]
 
 
 class MCPError(Exception):
@@ -423,6 +429,9 @@ def handle(
     skill_policy: ToolPolicy | None = None,
     task_handlers: Mapping[str, Handler] | None = None,
     persona_handler: Handler | None = None,
+    telemetry: TelemetryAdapter | None = None,
+    app_policy: AppPolicy | None = None,
+    log_tool_io: bool | None = None,
 ) -> tuple[int, dict[str, Any] | None]:
     """Handle one stateless JSON-RPC request.
 
@@ -437,6 +446,59 @@ def handle(
     except MCPError as exc:
         status = 400 if exc.code == HEADER_MISMATCH else 200
         return status, jsonrpc_error(req_id, exc.code, exc.message, exc.data)
+
+    context = TraceContext.from_meta(_meta(params))
+    emit_io = (
+        log_tool_io if log_tool_io is not None else bool(getattr(telemetry, "log_tool_io", False))
+    )
+    span_id = ""
+    if telemetry is not None:
+        try:
+            span_id = telemetry.start(span_name(method), context)
+        except Exception:  # noqa: BLE001 - telemetry must never fail the request
+            span_id = ""
+
+    def emit(event: str, attributes: Mapping[str, Any]) -> None:
+        if telemetry is None:
+            return
+        payload: dict[str, Any] = dict(attributes)
+        payload.setdefault("mcp.method", method)
+        payload.setdefault("gen_ai.system", "mcp_hub")
+        payload.setdefault("mcp.protocol.version", MCP_PROTOCOL_VERSION)
+        if span_id:
+            payload.setdefault("span.id", span_id)
+        if context is not None:
+            for key, value in context.to_dict().items():
+                payload.setdefault(key, value)
+            if context.trace_id:
+                payload.setdefault("trace.id", context.trace_id)
+        try:
+            telemetry.emit(event, payload)
+        except Exception:  # noqa: BLE001 - telemetry must never fail the request
+            pass
+
+    def with_trace(body: dict[str, Any]) -> dict[str, Any]:
+        if context is None:
+            return body
+        result = dict(body)
+        result["_meta"] = context.to_dict()
+        return result
+
+    def with_result_meta(result: dict[str, Any]) -> dict[str, Any]:
+        output = dict(result)
+        output_meta = dict(output.get("_meta") or {})
+        if context is not None:
+            output_meta.update(context.to_dict())
+        output["_meta"] = output_meta
+        return output
+
+    def finish_span(status: str, error_code: int | None = None) -> None:
+        if telemetry is None or not span_id:
+            return
+        try:
+            telemetry.finish(span_id, status, error_code)
+        except Exception:  # noqa: BLE001 - telemetry must never fail the request
+            pass
 
     meta = server_meta(str(info.get("name", "mcp-hub")), str(info.get("version", "unknown")))
 
@@ -489,8 +551,17 @@ def handle(
             raise
         except Exception as exc:  # noqa: BLE001 - a tool must not crash the dispatcher
             result = _error_content(f"{type(exc).__name__}: {exc}")
+            error_attrs = tool_attributes(
+                name, context, log_io=emit_io, arguments=checked, result=result
+            )
+            error_attrs["error.type"] = type(exc).__name__
+            emit("mcp.tool.error", error_attrs)
         else:
             result = _normalize_tool_result(raw)
+            emit(
+                "mcp.tool.call",
+                tool_attributes(name, context, log_io=emit_io, arguments=checked, result=result),
+            )
         result["_meta"] = meta
         return result
 
@@ -515,28 +586,42 @@ def handle(
                     raise
                 except Exception as exc:  # noqa: BLE001 - policy must fail closed
                     raise MCPError(POLICY_DENIED, f"Skill read denied: {exc}") from exc
+        if uri.startswith(APP_RESOURCE_PREFIX) and app_policy is not None:
+            try:
+                app_policy(uri, params)
+            except MCPError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - policy must fail closed
+                raise MCPError(POLICY_DENIED, f"UI read denied: {exc}") from exc
         handler = (resources or {}).get(uri)
         if handler is None:
             raise MCPError(INVALID_PARAMS, f"Unknown resource: {uri}")
         spec = next((item for item in resource_specs if item.uri == uri), None)
         try:
-            raw = handler({})
+            raw = handler(dict(params))
         except MCPError:
             raise
         except Exception as exc:  # noqa: BLE001
             raise MCPError(INTERNAL_ERROR, f"{type(exc).__name__}: {exc}") from exc
-        return {
-            "contents": [
+        if isinstance(raw, Mapping) and isinstance(raw.get("contents"), list):
+            contents = list(raw["contents"])
+        else:
+            contents = [
                 {
                     "uri": uri,
                     "mimeType": spec.mime_type if spec else "text/plain",
                     "text": raw if isinstance(raw, str) else json.dumps(raw, default=str),
                 }
-            ],
+            ]
+        payload: dict[str, Any] = {
+            "contents": contents,
             "ttlMs": 0,
             "cacheScope": "public",
             "_meta": meta,
         }
+        if isinstance(raw, Mapping) and "ui" in raw:
+            payload["ui"] = raw["ui"]
+        return payload
 
     def list_prompts() -> dict[str, Any]:
         return {
@@ -666,15 +751,25 @@ def handle(
     }
     handler = dispatch.get(method)
     if handler is None:
-        return 200, jsonrpc_error(req_id, METHOD_NOT_FOUND, f"Method not found: {method}")
+        emit("mcp.error", {"error.code": METHOD_NOT_FOUND, "error.type": "method_not_found"})
+        finish_span("error", METHOD_NOT_FOUND)
+        return 200, with_trace(
+            jsonrpc_error(req_id, METHOD_NOT_FOUND, f"Method not found: {method}")
+        )
     try:
         result = handler()
     except MCPError as exc:
-        return 200, jsonrpc_error(req_id, exc.code, exc.message, exc.data)
+        emit("mcp.error", {"error.code": exc.code, "error.type": type(exc).__name__})
+        finish_span("error", exc.code)
+        return 200, with_trace(jsonrpc_error(req_id, exc.code, exc.message, exc.data))
     except Exception as exc:  # noqa: BLE001 - the loop must survive any bug
-        return 200, jsonrpc_error(
-            req_id, INTERNAL_ERROR, "Internal error", {"type": type(exc).__name__}
+        emit("mcp.error", {"error.code": INTERNAL_ERROR, "error.type": type(exc).__name__})
+        finish_span("error", INTERNAL_ERROR)
+        return 200, with_trace(
+            jsonrpc_error(req_id, INTERNAL_ERROR, "Internal error", {"type": type(exc).__name__})
         )
+    emit("mcp.response", {"mcp.status": "ok"})
+    finish_span("ok")
     if notification:
         return 202, None
-    return 200, jsonrpc_result(req_id, result)
+    return 200, jsonrpc_result(req_id, with_result_meta(result))

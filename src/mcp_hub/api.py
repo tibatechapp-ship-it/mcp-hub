@@ -8,8 +8,18 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from . import __version__, alerts, catalog_tools, mcp_stateless, saved_searches, scheduler, taxonomy
+from . import (
+    __version__,
+    alerts,
+    catalog_tools,
+    mcp_stateless,
+    saved_searches,
+    scheduler,
+    taxonomy,
+)
+from . import apps as mcp_apps
 from . import provenance as _provenance
+from . import telemetry as telemetry_mod
 from .auth import add_auth_middleware
 from .dashboard import HTML as DASHBOARD_HTML
 from .database import Catalog
@@ -46,9 +56,23 @@ def create_app(
     catalog = catalog or Catalog(db_path or "mcp_hub.sqlite3")
     tool_policy = build_tool_policy()
     phase3 = catalog_tools.build_phase3(catalog, tool_policy)
+    phase4 = (
+        mcp_apps.build_runtime(catalog, phase3.skill_registry, phase3.task_store)
+        if mcp_apps.enabled()
+        else mcp_apps.empty_runtime()
+    )
+    telemetry = telemetry_mod.build_telemetry(str(catalog.path))
     mcp_tools = catalog_tools.build_tools(catalog)
-    mcp_resources = {**catalog_tools.build_resources(catalog), **phase3.skill_resources}
-    mcp_resource_specs = (*catalog_tools.RESOURCE_SPECS, *phase3.resource_specs)
+    mcp_resources = {
+        **catalog_tools.build_resources(catalog),
+        **phase3.skill_resources,
+        **phase4.resources,
+    }
+    mcp_resource_specs = (
+        *catalog_tools.RESOURCE_SPECS,
+        *phase3.resource_specs,
+        *phase4.resource_specs,
+    )
     app = FastAPI(title="mcp-hub", version=__version__, debug=False)
 
     # Middleware added later wraps earlier ones. Build inner->outer so the
@@ -296,6 +320,8 @@ def create_app(
                 skill_policy=phase3.skill_policy,
                 task_handlers=phase3.task_handlers,
                 persona_handler=phase3.persona_handler,
+                telemetry=telemetry,
+                app_policy=phase4.policy,
             )
         if payload is None:
             return Response(status_code=status)

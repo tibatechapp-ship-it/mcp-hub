@@ -19,7 +19,13 @@ from . import (
     taxonomy,
 )
 from . import (
+    apps as mcp_apps,
+)
+from . import (
     backup as backup_mod,
+)
+from . import (
+    telemetry as telemetry_mod,
 )
 from .database import Catalog
 from .models import Server
@@ -39,6 +45,39 @@ def cmd_doctor(args):
         print(json.dumps(res, ensure_ascii=False))
     else:
         print(json.dumps(res, ensure_ascii=False, indent=2))
+
+
+def cmd_telemetry_status(args):
+    _ = args
+    mode = os.environ.get(telemetry_mod.ENV_TELEMETRY, "sqlite").strip().lower() or "sqlite"
+    print(
+        json.dumps(
+            {
+                "configured": mode,
+                "log_tool_io": telemetry_mod.log_tool_io_enabled(),
+                "env": telemetry_mod.ENV_TELEMETRY,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_app_resources(args):
+    enabled = mcp_apps.enabled()
+    runtime = mcp_apps.build_runtime(_db(args)) if enabled else mcp_apps.empty_runtime()
+    print(
+        json.dumps(
+            {
+                "enabled": enabled,
+                "resources": [spec.to_dict() for spec in runtime.resource_specs],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
 
 
 def cmd_backup(args):
@@ -520,6 +559,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--session", required=True)
     s.add_argument("--task-id", default=None)
     s.set_defaults(func=cmd_persona_simulate)
+
+    s = sub.add_parser("telemetry-status", help="Show telemetry configuration safely")
+    s.set_defaults(func=cmd_telemetry_status)
+
+    s = sub.add_parser("app-resources", help="List available MCP App UI resources")
+    s.set_defaults(func=cmd_app_resources)
 
     s = sub.add_parser("import-text", help="Import from pipe-delimited text file")
     s.add_argument("file")
