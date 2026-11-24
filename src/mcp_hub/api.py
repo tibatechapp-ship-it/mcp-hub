@@ -318,6 +318,8 @@ def create_app(
                 tool_policy=tool_policy,
                 skill_handlers=phase3.skill_handlers,
                 skill_policy=phase3.skill_policy,
+                skill_approval_handlers=phase3.skill_approval_handlers,
+                approval_policy=phase3.approval_policy,
                 task_handlers=phase3.task_handlers,
                 persona_handler=phase3.persona_handler,
                 telemetry=telemetry,

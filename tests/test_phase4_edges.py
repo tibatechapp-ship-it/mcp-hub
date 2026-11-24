@@ -295,7 +295,15 @@ def test_apps_empty_runtime_and_broken_snapshot_sources(tmp_path, monkeypatch):
     built = mcp_apps.build_runtime(catalog, BrokenRegistry(), BrokenStore())  # type: ignore[arg-type]
     payload = built.resources[mcp_apps.APPROVAL_URI]({"tenant_id": "acme", "session_id": "s1"})
     snapshot = json.loads(payload["contents"][1]["text"])["snapshot"]
-    assert snapshot == {"skills": [], "pending_approvals": []}
+    assert snapshot["skills"] == []
+    assert snapshot["pending_approvals"] == []
+    assert snapshot["read_only_ui"] is True
+    assert {item["method"] for item in snapshot["available_actions"]} == {
+        "skills/approve",
+        "skills/revoke",
+        "tasks/approve",
+        "tasks/list",
+    }
     assert catalog_tools.PINNED_TOOL_MANIFEST_SHA256
 
 

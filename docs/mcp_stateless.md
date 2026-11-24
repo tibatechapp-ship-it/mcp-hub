@@ -46,6 +46,12 @@ Phase 3 adds `skills/list`, `skills/get`, `tasks/get`, `tasks/update`,
 returns `-10003` (`TASK_DENIED`). Skill reads use the policy's separate
 `skills` allow/deny section and never execute tools; see [Phase 3](phase3.md).
 
+Phase 5 adds `skills/approve`, `skills/revoke`, `tasks/approve` and
+`tasks/list`. The three write methods mirror `params.name` / `params.task_id`
+in `Mcp-Name` and require an explicit rule in the policy's new `approvals`
+section (default deny). `tasks/list` is a scoped read and takes no
+`Mcp-Name`. See [Phase 5](phase5.md).
+
 ## Example
 
 ```bash
