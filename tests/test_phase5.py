@@ -11,7 +11,7 @@ from mcp_hub import apps, catalog_tools, skills
 from mcp_hub import mcp_stateless as ms
 from mcp_hub import policy_gateway as pg
 from mcp_hub.api import create_app
-from mcp_hub.cli import main
+from mcp_hub.cli import EXIT_NOT_FOUND, main
 from mcp_hub.database import Catalog
 from mcp_hub.tasks import TaskStore
 
@@ -373,7 +373,10 @@ def test_cli_task_list_and_approve_report_errors(tmp_path, monkeypatch, capsys):
     )
     assert '"status": "queued"' in capsys.readouterr().out
 
-    assert main(["--db", db, "task-approve", "missing", "--tenant", "acme", "--session", "s1"]) == 2
+    assert (
+        main(["--db", db, "task-approve", "missing", "--tenant", "acme", "--session", "s1"])
+        == EXIT_NOT_FOUND
+    )
     assert "failed" in capsys.readouterr().err
 
 

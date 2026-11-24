@@ -69,11 +69,14 @@ buttons and no write path through the UI.
 
 ```bash
 mcp-hub policy-snapshot
-mcp-hub skill-approve mcp-hub-catalog --actor reviewer
-mcp-hub skill-revoke mcp-hub-catalog --actor reviewer
-mcp-hub task-list --tenant acme --session s1 --limit 20
-mcp-hub task-approve TASK --tenant acme --session s1 --actor reviewer --reason "checked"
+mcp-hub skill-list --json
+mcp-hub skill-approve mcp-hub-catalog --actor reviewer --json
+mcp-hub skill-revoke mcp-hub-catalog --actor reviewer --json
+mcp-hub task-list --tenant acme --session s1 --limit 20 --json
+mcp-hub task-approve TASK --tenant acme --session s1 --actor reviewer --reason "checked" --json
 ```
 
-The pinned tool manifest is unchanged: these are MCP methods, not new tool
-definitions.
+`--json` makes stdout compact and machine-readable; failures on stderr are JSON
+too. Exit codes follow the CLI contract: `0` success, `1` unknown skill/task,
+`2` invalid state or bad input. The pinned tool manifest is unchanged: these are
+MCP methods, not new tool definitions.

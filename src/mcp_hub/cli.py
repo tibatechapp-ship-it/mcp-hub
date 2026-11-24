@@ -35,6 +35,35 @@ def _db(args) -> Catalog:
     return Catalog(getattr(args, "db", None) or "mcp_hub.sqlite3")
 
 
+EXIT_OK = 0
+EXIT_NOT_FOUND = 1
+EXIT_BAD_INPUT = 2
+
+
+def _emit_json(args, payload) -> int:
+    """Print pretty JSON by default and compact JSON with --json."""
+    if getattr(args, "json", False):
+        print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    else:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return EXIT_OK
+
+
+def _fail_json(args, command: str, exc: BaseException, code: int) -> int:
+    """Report a command failure on stderr, with a JSON object under --json."""
+    if getattr(args, "json", False):
+        payload = {
+            "command": command,
+            "status": "failed",
+            "error": str(exc),
+            "exit_code": code,
+        }
+        print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
+    else:
+        print(f"{command} failed: {exc}", file=sys.stderr)
+    return code
+
+
 def cmd_stats(args):
     print(json.dumps(_db(args).stats(), ensure_ascii=False, indent=2))
 
@@ -195,8 +224,7 @@ def cmd_skill_list(args):
     from .skills import SkillRegistry
 
     registry = SkillRegistry(_db(args))
-    print(json.dumps([item.summary() for item in registry.list()], ensure_ascii=False, indent=2))
-    return 0
+    return _emit_json(args, [item.summary() for item in registry.list()])
 
 
 def cmd_skill_get(args):
@@ -220,21 +248,21 @@ def cmd_skill_approve(args):
 
     try:
         digest = SkillRegistry(_db(args)).approve(args.name, args.actor)
-    except (KeyError, ValueError) as exc:
-        print(f"skill-approve failed: {exc}", file=sys.stderr)
-        return 2
-    print(json.dumps({"name": args.name, "sha256": digest, "approved": True}, ensure_ascii=False))
-    return 0
+    except KeyError as exc:
+        return _fail_json(args, "skill-approve", exc, EXIT_NOT_FOUND)
+    except (ValueError, OSError) as exc:
+        return _fail_json(args, "skill-approve", exc, EXIT_BAD_INPUT)
+    return _emit_json(args, {"name": args.name, "sha256": digest, "approved": True})
 
 
 def cmd_skill_revoke(args):
     from .skills import SkillRegistry
 
-    removed = SkillRegistry(_db(args)).revoke(args.name, args.actor)
-    print(
-        json.dumps({"name": args.name, "approved": False, "removed": removed}, ensure_ascii=False)
-    )
-    return 0
+    try:
+        removed = SkillRegistry(_db(args)).revoke(args.name, args.actor)
+    except (ValueError, OSError) as exc:
+        return _fail_json(args, "skill-revoke", exc, EXIT_BAD_INPUT)
+    return _emit_json(args, {"name": args.name, "approved": False, "removed": removed})
 
 
 def cmd_task_get(args):
@@ -267,10 +295,8 @@ def cmd_task_list(args):
     try:
         result = TaskStore(_db(args)).list(args.tenant, args.session, limit=args.limit)
     except TaskError as exc:
-        print(f"task-list failed: {exc}", file=sys.stderr)
-        return 2
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0
+        return _fail_json(args, "task-list", exc, EXIT_BAD_INPUT)
+    return _emit_json(args, result)
 
 
 def cmd_task_approve(args):
@@ -285,10 +311,9 @@ def cmd_task_approve(args):
             reason=args.reason,
         )
     except TaskError as exc:
-        print(f"task-approve failed: {exc}", file=sys.stderr)
-        return 2
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0
+        code = EXIT_NOT_FOUND if "not found" in str(exc).lower() else EXIT_BAD_INPUT
+        return _fail_json(args, "task-approve", exc, code)
+    return _emit_json(args, result)
 
 
 def cmd_persona_simulate(args):
@@ -552,6 +577,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_policy_snapshot)
 
     s = sub.add_parser("skill-list", help="List validated read-only skill packages")
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
     s.set_defaults(func=cmd_skill_list)
 
     s = sub.add_parser("skill-get", help="Show a validated skill package")
@@ -562,11 +588,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("skill-approve", help="Pin the current skill digest as approved")
     s.add_argument("name")
     s.add_argument("--actor", default="local")
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
     s.set_defaults(func=cmd_skill_approve)
 
     s = sub.add_parser("skill-revoke", help="Remove a stored skill approval")
     s.add_argument("name")
     s.add_argument("--actor", default="local")
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
     s.set_defaults(func=cmd_skill_revoke)
 
     s = sub.add_parser("task-get", help="Read a scoped durable task")
@@ -586,6 +614,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--tenant", required=True)
     s.add_argument("--session", default=None)
     s.add_argument("--limit", type=int, default=50)
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
     s.set_defaults(func=cmd_task_list)
 
     s = sub.add_parser("task-approve", help="Approve a task awaiting approval")
@@ -594,6 +623,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--session", required=True)
     s.add_argument("--actor", default="local")
     s.add_argument("--reason", default="approved by caller")
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
     s.set_defaults(func=cmd_task_approve)
 
     s = sub.add_parser("persona-simulate", help="Replay a local deterministic tool chain")
