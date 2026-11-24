@@ -1,8 +1,11 @@
-"""Build-config consistency checks (v1.4.1 hardening)."""
+"""Build-config consistency checks (v1.4.1 hardening, v1.6.0 release gate)."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
+from mcp_hub import __version__
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,3 +28,9 @@ def test_release_attaches_checksums_and_docs_builds_simple_index() -> None:
     assert "dist/SHA256SUMS" in release
     assert "python scripts/generate_simple_index.py" in docs
     assert "workflow_run:" in docs  # regenerate after GITHUB_TOKEN release creation
+
+
+def test_release_version_is_consistent() -> None:
+    pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r'^version = "1\.6\.0"$', pyproject, re.MULTILINE)
+    assert __version__ == "1.6.0"

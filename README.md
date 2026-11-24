@@ -18,7 +18,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.5.0
+- **Version:** 1.6.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -28,17 +28,17 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
 - **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`); tool names and `inputSchema` stay untouched and every failure fails open.
 
-**New in 1.5.0** — the Arabic registry and capability profiles, a stateless MCP
-core for the 2026-07-28 revision with an anti-rug-pull tool manifest, a
-bilingual policy/router layer, durable skills/tasks plus the MCP-Persona
-simulator, and dependency-free telemetry with opt-in OTel and sandboxed MCP
-Apps resources. Verified with 425 tests at 90.43% coverage. Full list:
-[CHANGELOG.md](CHANGELOG.md).
+**New in 1.6.0** — Phase 5 actionable approvals: a default-deny `approvals`
+policy with `skills/approve`, `skills/revoke`, `tasks/approve` and scoped
+`tasks/list`, content-bound SHA-256 fingerprint checks that close the TOCTOU
+gap between review and write, and a JSON/exit-code contract (`--json`,
+`0`/`1`/`2`) on the five approval CLI commands. Verified with 485 tests at
+95.11%-95.22% coverage. Full list: [CHANGELOG.md](CHANGELOG.md).
 
-**Unreleased (Phase 5)** adds explicit approval writes over MCP behind a new
-default-deny `approvals` policy: `skills/approve`, `skills/revoke`,
-`tasks/approve` and scoped `tasks/list`, plus digest-bound audit events and
-read-only Apps action metadata. See [Phase 5](docs/phase5.md).
+Builds on the 1.5.0 Arabic registry, stateless MCP core, bilingual
+policy/router layer, durable skills/tasks, persona simulator and optional
+telemetry without changing the pinned tool manifest. See
+[Phase 5](docs/phase5.md).
 
 ## Why
 

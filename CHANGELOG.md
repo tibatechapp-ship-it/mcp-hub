@@ -1,10 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [1.6.0] — 2026-11-25
+
+Phase 5 actionable approvals line (PRs #49-#50). Builds on the 1.5.0
+capability/protocol/observability base without changing its pinned tool
+manifest or stateless protocol surface. Release gate: 485 tests passed,
+95.11%-95.22% coverage, 12/12 CI/Docs checks green.
 
 ### Added
-- **Phase 5 actionable approvals**: a default-deny `approvals` policy section separate from tool and skill reads, MCP methods `skills/approve`, `skills/revoke`, `tasks/approve` and scoped `tasks/list`, digest-bound redacted skill approval events, atomic task approval under `BEGIN IMMEDIATE`, CLI `task-list` / `task-approve`, and read-only `available_actions` metadata in the approval Apps resource. The pinned tool manifest is unchanged.
-- **Approval CLI contract**: `skill-list`, `skill-approve`, `skill-revoke`, `task-list` and `task-approve` now accept `--json` for compact stdout and structured JSON failures on stderr, with documented exit codes (`0` success, `1` not found, `2` bad input or invalid state).
+- **Phase 5 actionable approvals**: a default-deny `approvals` policy section separate from tool and skill reads, MCP methods `skills/approve`, `skills/revoke`, `tasks/approve` and scoped `tasks/list`, digest-bound redacted skill approval events with SHA-256 content fingerprints that close the TOCTOU gap between review and write, atomic task approval under `BEGIN IMMEDIATE`, CLI `task-list` / `task-approve`, and read-only `available_actions` metadata in the approval Apps resource. The pinned tool manifest is unchanged.
+- **Approval CLI contract**: `skill-list`, `skill-approve`, `skill-revoke`, `task-list` and `task-approve` now accept `--json` for compact stdout and structured JSON failures on stderr, with documented exit codes (`0` success, `1` not found, `2` bad input or invalid state); default pretty output remains backward compatible.
+
+### Verification
+- 485 tests passed on Python 3.10-3.14; total coverage 95.11%-95.22%.
+- Sensitive modules: `cli.py` 100%, `policy_gateway.py` 99%, `skills.py` 98%, `tasks.py` 99%, `mcp_stateless.py` 99%, `arabic_runtime.py` 100%.
+- GitGuardian, Trivy, security-scan, image-scan, docs and both MCP SDK lanes green.
 
 ## [1.5.0] — 2026-11-24
 

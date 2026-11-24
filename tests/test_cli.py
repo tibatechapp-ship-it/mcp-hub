@@ -298,4 +298,6 @@ def test_version_flag_exits_zero(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
     assert exc.value.code == 0
-    assert "mcp-hub" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "mcp-hub" in output
+    assert "1.6.0" in output

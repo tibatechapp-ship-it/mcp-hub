@@ -92,12 +92,14 @@ Make CI measure what the README claims.
 
 **Exit:** docs site builds in CI, pre-commit passes on a clean checkout, coverage ≥ 88%.
 
-### Phase 5 — dependabot debt (≈1 day, do it *after* the matrix exists)
+### Phase 5 — dependency debt + actionable approvals (COMPLETE, 2026-11-25)
 - Merge in this order once the Phase 0 matrix is green: checkout 7 → setup-python 7 → metadata 6 → build-push 7 → download-artifact 8 (verify the artifact API change against `security-scan` upload/download).
 - **Close #9** (`python:3.15-slim`): 3.15 is not released; adopt a pre-release base image and the whole supply chain inherits an unpatched Debian snapshot. Pin `python:3.13-slim` (current stable line with the longest support) and let Dependabot propose 3.14 when it lands in the base image.
 - Add `.github/dependabot.yml` grouping so patch bumps arrive as one PR, not five.
 
-**Exit:** zero open dependency PRs, base image pinned to a released Python, grouping live.
+**Exit (dependency debt):** zero open dependency PRs, base image pinned to a released Python, grouping live.
+
+**Exit (product Phase 5):** shipped in v1.6.0 — default-deny `approvals` policy, actionable MCP approval methods, digest-bound TOCTOU guard on skill approvals, atomic task approval, the five approval CLI commands with `--json` and exit codes `0`/`1`/`2`, and read-only Apps action metadata. No new migration and no change to the pinned tool manifest. Verified with 485 tests at 95.11%-95.22% coverage.
 
 ### Phase 6 — publishing (LAST)
 1. Create the PyPI **pending publisher**: project `mcp-hub`, owner `tibatechapp-ship-it`, workflow `publish.yml`, environment `pypi`.
