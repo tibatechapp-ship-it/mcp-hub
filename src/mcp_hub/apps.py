@@ -17,6 +17,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from .arabic_runtime import resolve_lang
 from .database import Catalog
 from .mcp_stateless import (
     POLICY_DENIED,
@@ -32,6 +33,7 @@ __all__ = [
     "APPROVAL_URI",
     "CATALOG_URI",
     "ALLOWED_URIS",
+    "ENV_UI_LANG",
     "AppRuntime",
     "AppPolicy",
     "enabled",
@@ -42,6 +44,7 @@ __all__ = [
 APPROVAL_URI = "ui://mcp-hub/approval-review"
 CATALOG_URI = "ui://mcp-hub/tool-catalog"
 ALLOWED_URIS: frozenset[str] = frozenset({APPROVAL_URI, CATALOG_URI})
+ENV_UI_LANG = "MCP_HUB_UI_LANG"
 RELAY_UI = "__mcpHubRelayUi"
 RELAY_HOST = "__mcpHubRelayHost"
 
@@ -79,6 +82,11 @@ def enabled() -> bool:
     }
 
 
+def _ui_lang(params: Mapping[str, Any]) -> str:
+    requested = params.get("lang")
+    return resolve_lang(requested if isinstance(requested, str) else None, ENV_UI_LANG)
+
+
 def _hash(text: str) -> str:
     return "sha256-" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -99,14 +107,29 @@ def _csp(script_hashes: tuple[str, ...]) -> str:
     )
 
 
-def _inner_script(request_method: str) -> str:
+def _inner_script(request_method: str, lang: str) -> str:
+    labels = (
+        {
+            "no_response": "لا توجد استجابة من المضيف.",
+            "error": "خطأ ",
+            "waiting": "لم يجب المضيف؛ عرض اللقطة المضمنة.",
+        }
+        if lang == "ar"
+        else {
+            "no_response": "No response from host.",
+            "error": "Error ",
+            "waiting": "Host did not answer; showing embedded snapshot.",
+        }
+    )
+    labels_json = _safe_json(labels)
     return f"""\
 (function () {{
   var out = document.getElementById('out');
+  var labels = {labels_json};
   function render(message) {{
-    if (!message) {{ out.textContent = 'No response from host.'; return; }}
+    if (!message) {{ out.textContent = labels.no_response; return; }}
     if (message.error) {{
-      out.textContent = 'Error ' + message.error.code + ': ' + message.error.message;
+      out.textContent = labels.error + message.error.code + ': ' + message.error.message;
       return;
     }}
     var result = message.result || {{}};
@@ -127,7 +150,7 @@ def _inner_script(request_method: str) -> str:
     message: {{ jsonrpc: '2.0', id: 1, method: '{request_method}', params: {{}} }}
   }}, '*');
   setTimeout(function () {{
-    if (!out.textContent) {{ out.textContent = 'Host did not answer; showing embedded snapshot.'; }}
+    if (!out.textContent) {{ out.textContent = labels.waiting; }}
   }}, 800);
 }})();
 """
@@ -150,15 +173,32 @@ def _outer_script() -> str:
 """
 
 
-def _document(uri: str, title: str, snapshot: Mapping[str, Any], request_method: str) -> str:
-    inner_script = _inner_script(request_method)
+def _document(
+    uri: str, title: str, snapshot: Mapping[str, Any], request_method: str, lang: str = "en"
+) -> str:
+    arabic = lang == "ar"
+    inner_script = _inner_script(request_method, lang)
     outer_script = _outer_script()
     csp = _csp((_hash(inner_script), _hash(outer_script)))
     escaped_csp = html.escape(csp, quote=True)
     snapshot_json = _safe_json(snapshot)
+    direction = "rtl" if arabic else "ltr"
+    notice = (
+        "تطبيق MCP للقراءة فقط. لا يتم عرض أي بيانات حساسة."
+        if arabic
+        else "Read-only MCP App. No credentials are rendered."
+    )
+    response_label = "الاستجابة" if arabic else "Response"
+    waiting = "في انتظار استجابة JSON-RPC..." if arabic else "Waiting for JSON-RPC response..."
+    noscript = (
+        "بدون JavaScript يتوفر بديل JSON في استجابة مورد MCP."
+        if arabic
+        else "JSON fallback is included in the MCP resource response."
+    )
+    sandbox_label = " (داخل إطار معزول)" if arabic else " (sandboxed)"
     inner = f"""\
 <!doctype html>
-<html lang="en">
+<html lang="{html.escape(lang, quote=True)}" dir="{direction}">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="{escaped_csp}">
@@ -166,22 +206,22 @@ def _document(uri: str, title: str, snapshot: Mapping[str, Any], request_method:
 </head>
 <body>
 <h1>{html.escape(title)}</h1>
-<p>Read-only MCP App. No credentials are rendered.</p>
+<p>{html.escape(notice)}</p>
 <pre id="snapshot">{html.escape(snapshot_json)}</pre>
-<h2>Response</h2>
-<pre id="out">Waiting for JSON-RPC response...</pre>
-<noscript>JSON fallback is included in the MCP resource response.</noscript>
+<h2>{html.escape(response_label)}</h2>
+<pre id="out">{html.escape(waiting)}</pre>
+<noscript>{html.escape(noscript)}</noscript>
 <script>{inner_script}</script>
 </body>
 </html>
 """
     outer = f"""\
 <!doctype html>
-<html lang="en">
+<html lang="{html.escape(lang, quote=True)}" dir="{direction}">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="{escaped_csp}">
-<title>{html.escape(title)} (sandboxed)</title>
+<title>{html.escape(title)}{html.escape(sandbox_label)}</title>
 </head>
 <body>
 <iframe id="mcp-app" title="{html.escape(title)}" sandbox="allow-scripts"
@@ -195,15 +235,22 @@ def _document(uri: str, title: str, snapshot: Mapping[str, Any], request_method:
 
 
 def _resource_payload(
-    uri: str, title: str, snapshot: Mapping[str, Any], request_method: str
+    uri: str,
+    title: str,
+    snapshot: Mapping[str, Any],
+    request_method: str,
+    lang: str = "en",
 ) -> dict[str, Any]:
-    html_text = _document(uri, title, snapshot, request_method)
+    html_text = _document(uri, title, snapshot, request_method, lang)
+    direction = "rtl" if lang == "ar" else "ltr"
     fallback = {
         "uri": uri,
         "app": title,
         "snapshot": dict(snapshot),
         "transport": "jsonrpc-over-postmessage",
         "rendered": False,
+        "lang": lang,
+        "dir": direction,
     }
     return {
         "contents": [
@@ -219,6 +266,8 @@ def _resource_payload(
             "sandbox": "allow-scripts",
             "transport": "jsonrpc-over-postmessage",
             "fallbackMimeType": "application/json",
+            "lang": lang,
+            "dir": direction,
         },
     }
 
@@ -298,14 +347,16 @@ def build_runtime(
         }
 
     def approval_ui(params: Mapping[str, Any]) -> dict[str, Any]:
+        lang = _ui_lang(params)
+        title = "مراجعة الاعتمادات" if lang == "ar" else "Approval review"
         return _resource_payload(
-            APPROVAL_URI, "Approval review", approval_snapshot(params), "skills/list"
+            APPROVAL_URI, title, approval_snapshot(params), "skills/list", lang
         )
 
     def catalog_ui(params: Mapping[str, Any]) -> dict[str, Any]:
-        return _resource_payload(
-            CATALOG_URI, "Tool catalog", catalog_snapshot(params), "tools/list"
-        )
+        lang = _ui_lang(params)
+        title = "كتالوج الأدوات" if lang == "ar" else "Tool catalog"
+        return _resource_payload(CATALOG_URI, title, catalog_snapshot(params), "tools/list", lang)
 
     return AppRuntime(
         resource_specs=_SPECS,

@@ -33,8 +33,17 @@ ENV_CACHE = "MCP_HUB_AR_CACHE"
 ENV_UPSTREAM = "MCP_HUB_AR_UPSTREAM_URL"
 ENV_LIVE = "MCP_HUB_AR_LIVE"
 ENV_TTL = "MCP_HUB_AR_SYNC_TTL"
+ENV_LANG = "MCP_HUB_LANG"
 
 _TRUE = {"1", "true", "yes", "on"}
+_DIGIT_MAP = str.maketrans(
+    {
+        **{chr(0x0660 + i): str(i) for i in range(10)},  # ٠-٩
+        **{chr(0x06F0 + i): str(i) for i in range(10)},  # ۰-۹
+    }
+)
+_CHAR_MAP = str.maketrans({"ـ": None, "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي"})
+_DIAGNOSTIC_AR = {0: "تم", 1: "غير موجود", 2: "مدخل غير صالح"}
 _PHRASES: tuple[tuple[str, str], ...] = (
     ("Search the catalog", "ابحث في الكتالوج"),
     ("Get full details", "اعرض التفاصيل الكاملة"),
@@ -62,6 +71,38 @@ _STATE: dict[str, Any] = {
 
 def _env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in _TRUE
+
+
+def normalize_arabic_text(text: str) -> str:
+    """Normalize user text without changing protocol names or schemas.
+
+    Arabic-Indic and Extended Arabic-Indic digits become ASCII digits, tatweel
+    is removed, alef/ya variants are folded, and whitespace is collapsed.
+    """
+    normalized = text.translate(_DIGIT_MAP).translate(_CHAR_MAP)
+    return " ".join(normalized.split())
+
+
+def resolve_lang(value: str | None = None, env_name: str = ENV_LANG) -> str:
+    """Resolve an opt-in language; English stays the default."""
+    raw = value if value is not None else os.environ.get(env_name, "")
+    candidate = normalize_arabic_text(str(raw)).strip().lower()
+    return "ar" if candidate in {"ar", "arabic", "العربية"} else "en"
+
+
+def arabic_error_fields(
+    command: str, exc: BaseException, code: int, lang: str = "en"
+) -> dict[str, Any]:
+    """Build stable CLI failure fields with an optional Arabic diagnostic."""
+    fields: dict[str, Any] = {
+        "command": command,
+        "status": "failed",
+        "error": str(exc),
+        "exit_code": code,
+    }
+    if resolve_lang(lang) == "ar":
+        fields["message_ar"] = f"{_DIAGNOSTIC_AR.get(code, 'خطأ')}: {exc}"
+    return fields
 
 
 def _warn(message: str) -> None:

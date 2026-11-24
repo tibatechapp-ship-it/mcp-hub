@@ -27,6 +27,7 @@ from . import (
 from . import (
     telemetry as telemetry_mod,
 )
+from .arabic_runtime import arabic_error_fields, normalize_arabic_text, resolve_lang
 from .database import Catalog
 from .models import Server
 
@@ -40,6 +41,23 @@ EXIT_NOT_FOUND = 1
 EXIT_BAD_INPUT = 2
 
 
+def _lang(args) -> str:
+    return resolve_lang(getattr(args, "lang", None))
+
+
+def _norm(value):
+    return normalize_arabic_text(value) if isinstance(value, str) else value
+
+
+def _add_lang_option(parser) -> None:
+    parser.add_argument(
+        "--lang",
+        choices=("en", "ar"),
+        default=None,
+        help="Diagnostic language (also settable with MCP_HUB_LANG)",
+    )
+
+
 def _emit_json(args, payload) -> int:
     """Print pretty JSON by default and compact JSON with --json."""
     if getattr(args, "json", False):
@@ -51,16 +69,13 @@ def _emit_json(args, payload) -> int:
 
 def _fail_json(args, command: str, exc: BaseException, code: int) -> int:
     """Report a command failure on stderr, with a JSON object under --json."""
+    payload = arabic_error_fields(command, exc, code, _lang(args))
     if getattr(args, "json", False):
-        payload = {
-            "command": command,
-            "status": "failed",
-            "error": str(exc),
-            "exit_code": code,
-        }
         print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
     else:
         print(f"{command} failed: {exc}", file=sys.stderr)
+        if payload.get("message_ar"):
+            print(payload["message_ar"], file=sys.stderr)
     return code
 
 
@@ -182,7 +197,7 @@ def cmd_route_task(args):
 
     try:
         result = route_task(
-            args.task,
+            _norm(args.task),
             specs=TOOL_SPECS,
             registry_path=args.registry,
             limit=args.limit,
@@ -246,23 +261,25 @@ def cmd_skill_get(args):
 def cmd_skill_approve(args):
     from .skills import SkillRegistry
 
+    name = _norm(args.name)
     try:
-        digest = SkillRegistry(_db(args)).approve(args.name, args.actor)
+        digest = SkillRegistry(_db(args)).approve(name, _norm(args.actor))
     except KeyError as exc:
         return _fail_json(args, "skill-approve", exc, EXIT_NOT_FOUND)
     except (ValueError, OSError) as exc:
         return _fail_json(args, "skill-approve", exc, EXIT_BAD_INPUT)
-    return _emit_json(args, {"name": args.name, "sha256": digest, "approved": True})
+    return _emit_json(args, {"name": name, "sha256": digest, "approved": True})
 
 
 def cmd_skill_revoke(args):
     from .skills import SkillRegistry
 
+    name = _norm(args.name)
     try:
-        removed = SkillRegistry(_db(args)).revoke(args.name, args.actor)
+        removed = SkillRegistry(_db(args)).revoke(name, _norm(args.actor))
     except (ValueError, OSError) as exc:
         return _fail_json(args, "skill-revoke", exc, EXIT_BAD_INPUT)
-    return _emit_json(args, {"name": args.name, "approved": False, "removed": removed})
+    return _emit_json(args, {"name": name, "approved": False, "removed": removed})
 
 
 def cmd_task_get(args):
@@ -293,7 +310,9 @@ def cmd_task_list(args):
     from .tasks import TaskError, TaskStore
 
     try:
-        result = TaskStore(_db(args)).list(args.tenant, args.session, limit=args.limit)
+        result = TaskStore(_db(args)).list(
+            _norm(args.tenant), _norm(args.session), limit=args.limit
+        )
     except TaskError as exc:
         return _fail_json(args, "task-list", exc, EXIT_BAD_INPUT)
     return _emit_json(args, result)
@@ -304,11 +323,11 @@ def cmd_task_approve(args):
 
     try:
         result = TaskStore(_db(args)).approve(
-            args.task_id,
-            args.tenant,
-            args.session,
-            actor=args.actor,
-            reason=args.reason,
+            _norm(args.task_id),
+            _norm(args.tenant),
+            _norm(args.session),
+            actor=_norm(args.actor),
+            reason=_norm(args.reason),
         )
     except TaskError as exc:
         code = EXIT_NOT_FOUND if "not found" in str(exc).lower() else EXIT_BAD_INPUT
@@ -578,6 +597,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("skill-list", help="List validated read-only skill packages")
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
     s.set_defaults(func=cmd_skill_list)
 
     s = sub.add_parser("skill-get", help="Show a validated skill package")
@@ -589,12 +609,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("name")
     s.add_argument("--actor", default="local")
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
     s.set_defaults(func=cmd_skill_approve)
 
     s = sub.add_parser("skill-revoke", help="Remove a stored skill approval")
     s.add_argument("name")
     s.add_argument("--actor", default="local")
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
     s.set_defaults(func=cmd_skill_revoke)
 
     s = sub.add_parser("task-get", help="Read a scoped durable task")
@@ -615,6 +637,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--session", default=None)
     s.add_argument("--limit", type=int, default=50)
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
     s.set_defaults(func=cmd_task_list)
 
     s = sub.add_parser("task-approve", help="Approve a task awaiting approval")
@@ -624,6 +647,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--actor", default="local")
     s.add_argument("--reason", default="approved by caller")
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
     s.set_defaults(func=cmd_task_approve)
 
     s = sub.add_parser("persona-simulate", help="Replay a local deterministic tool chain")
