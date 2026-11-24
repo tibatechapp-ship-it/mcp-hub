@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Phase 6 Path 1 — native Arabic runtime**: `normalize_arabic_text()` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII, removes tatweel and folds alef/ya variants; the approval CLI and `route-task` apply it to user input.
+- **Arabic diagnostics**: the five approval CLI commands accept `--lang ar` (or `MCP_HUB_LANG`) and add a stable `message_ar` field to JSON failures without changing the compact output, stderr routing or exit codes `0`/`1`/`2`.
+- **RTL read-only Apps UI**: `ui://` resources accept `params.lang = "ar"` or `MCP_HUB_UI_LANG`, render `lang="ar" dir="rtl"` with re-computed script hashes and report `lang`/`dir` in the JSON fallback.
+- **Path 2 interface contract**: `docs/arabic_runtime.md` documents how a future Arabic MCP Client / DSL translates phrases into existing MCP methods or `--json` CLI calls without duplicating policy, audit or approval state.
+
 ## [1.6.0] — 2026-11-25
 
 Phase 5 actionable approvals line (PRs #49-#50). Builds on the 1.5.0
