@@ -9,12 +9,15 @@
 >
 > Full security model: [SECURITY.md](SECURITY.md).
 
-[![PyPI](https://img.shields.io/pypi/v/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
-[![Python](https://img.shields.io/pypi/pyversions/mcp-hub.svg)](https://pypi.org/project/mcp-hub/)
+[![Release](https://img.shields.io/github/v/release/tibatechapp-ship-it/mcp-hub)](https://github.com/tibatechapp-ship-it/mcp-hub/releases/latest)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/releases/latest)
 [![CI](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://tibatechapp-ship-it.github.io/mcp-hub/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Container](https://img.shields.io/badge/ghcr.io-mcp--hub-blue.svg)](https://github.com/tibatechapp-ship-it/mcp-hub/pkgs/container/mcp-hub)
+
+**Install note:** PyPI publishing is deferred; install from the PEP 503 index or
+the signed GitHub Release assets. See [`docs/install.md`](docs/install.md).
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 

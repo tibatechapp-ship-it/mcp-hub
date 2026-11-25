@@ -59,6 +59,15 @@ resolved dry-run `plan`. `run` returns per-step status, `stopped_at`,
 Exit codes: `0` success, `1` runtime error, `2` bad input or policy/task denial
 (`-10002` / `-10003`), matching `arabic-dsl`.
 
+## ID and digit limits
+
+The same limits as the DSL apply: IDs match `[A-Za-z0-9._:@-]{1,128}`, and
+Arabic-Indic digits (`٠-٩`, `۰-۹`) are rejected in task/skill names,
+`tenant_id`, `session_id`, `actor` and server IDs with exit `2`. `${name}`
+substitution is allowed only in free-text query/task arguments; digit folding
+is used for matching, not for audit data. See
+[`arabic_runtime.md`](arabic_runtime.md).
+
 ## Stable check codes
 
 `EMPTY_PLAYBOOK`, `UNKNOWN_COMMAND`, `BAD_ARGUMENT`, `UNDEFINED_VARIABLE`,
@@ -71,7 +80,9 @@ Every `run` appends one playbook-level row to the `arflow_audit` SQLite table �
 name, original raw text, resolved variables, plan, steps, status, exit code and
 the verbatim tenant/session/actor/lang. Individual steps keep writing their
 normal `arabic_dsl_audit` rows. Arabic text is stored unchanged; only query
-matching uses `normalize_for_match()`.
+matching uses `normalize_for_match()`. These audit tables are append-only and
+have no built-in retention or vacuum; manage their growth at the SQLite file
+level.
 
 `ui://mcp-hub/*` resources stay read-only RTL surfaces: playbooks can display
 them but never create write-method `postMessage` calls.

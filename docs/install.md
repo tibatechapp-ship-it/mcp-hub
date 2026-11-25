@@ -1,6 +1,11 @@
 # Install
 
-## pip
+> PyPI publishing is currently deferred: the `publish-pypi-deferred` job is
+> skipped and `https://pypi.org/pypi/mcp-hub/json` returns `404`. Use the PEP
+> 503 index or the GitHub Release assets below until a Trusted Publisher is
+> configured.
+
+## pip (PyPI — deferred)
 
 ```bash
 pip install mcp-hub               # core: CLI + SQLite, no web stack
@@ -8,7 +13,8 @@ pip install "mcp-hub[api]"        # + FastAPI, uvicorn, dashboard
 pip install "mcp-hub[mcp-server]" # + MCP server entry point
 ```
 
-Requires Python 3.10+. Tested on 3.10–3.14.
+Requires Python 3.10+. Tested on 3.10–3.14. These commands become usable once
+PyPI publishing is enabled; until then install from the index below.
 
 ## Docker
 
