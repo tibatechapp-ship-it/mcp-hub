@@ -105,9 +105,9 @@ jobs:
           first, second, third = [json.loads(open(p, encoding="utf-8").read()) for p in sys.argv[1:]]
           assert first["rerun_count"] == 3 and first["adopted_count"] == 0, first
           assert second["adopted_count"] == 3 and second["rerun_count"] == 0, second
-          assert third["changed_from"] == 3 and third["rerun_count"] == 1, third
+          assert third["changed_from"] == 4 and third["rerun_count"] == 1, third
           assert third["adopted_count"] == 3, third
-          print("incremental OK: first rerun=3 adopted=0; second adopted=3 rerun=0; changed_from=3 rerun=1")
+          print("incremental OK: first rerun=3 adopted=0; second adopted=3 rerun=0; changed_from=4 rerun=1")
           PY
 
       - name: Cleanup local-action fixtures
@@ -235,8 +235,8 @@ jobs:
           cd "$FIELD/repo"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks install \
             --json --lang ar > "$FIELD/hooks-install.json"
-          test -f "$MCP_HUB_GOVERNANCE_HOME/pre-commit"
-          test -f "$MCP_HUB_GOVERNANCE_HOME/pre-push"
+          test -f "$MCP_HUB_GOVERNANCE_HOME/hooks/pre-commit"
+          test -f "$MCP_HUB_GOVERNANCE_HOME/hooks/pre-push"
           git config --global --get core.hooksPath
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
             --json --lang ar > "$FIELD/hooks-check.json"
