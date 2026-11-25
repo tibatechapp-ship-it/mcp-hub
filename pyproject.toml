@@ -121,6 +121,7 @@ files = [
     "src/mcp_hub/apps.py",
     "src/mcp_hub/arflow.py",
     "src/mcp_hub/incremental.py",
+    "src/mcp_hub/watch.py",
 ]
 # Widen this list module by module; a repo-wide strict gate on day one would be
 # noise, a gate on the security core is a promise that can be kept.
