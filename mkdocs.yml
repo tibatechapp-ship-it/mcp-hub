@@ -21,6 +21,7 @@ nav:
   - Native Arabic runtime: arabic_runtime.md
   - Arabic command DSL: arabic_dsl.md
   - Arabic playbooks: arflow.md
+  - Incremental Arabic testing: incremental_testing.md
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md
