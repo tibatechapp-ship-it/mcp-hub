@@ -302,7 +302,9 @@ jobs:
           set -e
           printf 'dsl exits: ok=%s deny=%s bad_id=%s\n' "$ok" "$deny" "$badid"
           printf 'deny stderr=%s\n' "$(cat "$FIELD/dsl-deny.err")"
+          printf 'deny stdout=%s\n' "$(cat "$FIELD/dsl-deny.json")"
           printf 'bad-id stderr=%s\n' "$(cat "$FIELD/dsl-id.err")"
+          printf 'bad-id stdout=%s\n' "$(cat "$FIELD/dsl-id.json")"
           test "$ok" -eq 0
           test "$deny" -eq 2
           test "$badid" -eq 2
