@@ -264,8 +264,20 @@ jobs:
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks uninstall \
             --json --lang ar > "$FIELD/hooks-uninstall.json"
           echo "MARK check-after"
+          set +e
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
             --json --lang ar > "$FIELD/hooks-check-after.json"
+          after_code=$?
+          set -e
+          python3 - "$FIELD/hooks-check-after.json" "$after_code" <<'PY'
+          import json
+          import sys
+
+          payload = json.loads(open(sys.argv[1], encoding="utf-8").read())
+          assert int(sys.argv[2]) == 1, (sys.argv[2], payload)
+          assert payload["status"] == "not_installed", payload
+          print("hooks uninstall OK: check reports not_installed with exit 1")
+          PY
           if git config --global --get core.hooksPath >/dev/null 2>&1; then
             echo "global hooks path was not restored" >&2
             exit 1
