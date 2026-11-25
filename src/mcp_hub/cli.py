@@ -9,6 +9,7 @@ from pathlib import Path
 from . import (
     __version__,
     alerts,
+    arabic_dsl,
     doctor,
     exporters,
     github_enrich,
@@ -526,6 +527,26 @@ def cmd_serve(args):
     return 0
 
 
+def cmd_arabic_dsl(args):
+    """Run Arabic commands/pipelines through the unified MCP gateway."""
+    try:
+        context = arabic_dsl.DslContext(
+            tenant_id=args.tenant,
+            session_id=args.session,
+            actor=args.actor,
+            lang=_lang(args),
+        )
+        text = Path(args.file).read_text(encoding="utf-8") if args.file else args.text
+        commands = arabic_dsl.parse(text, context)
+        payload = arabic_dsl.execute(commands, _db(args), dry_run=args.dry_run)
+    except arabic_dsl.DslError as exc:
+        return _fail_json(args, "arabic-dsl", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "arabic-dsl", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-hub", description="Local-first MCP server catalog")
     p.add_argument("--db", default="mcp_hub.sqlite3", help="Path to SQLite database")
@@ -738,6 +759,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("list-alerts", help="List alerts")
     s.set_defaults(func=cmd_list_alerts)
+
+    s = sub.add_parser(
+        "arabic-dsl", help="Run Arabic commands/pipelines over the unified MCP gateway"
+    )
+    source = s.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--text", help="One Arabic command or a pipeline separated by ; or newlines"
+    )
+    source.add_argument("--file", help="UTF-8 file containing one Arabic command per line")
+    s.add_argument("--dry-run", action="store_true", help="Show the translated plan only")
+    s.add_argument("--tenant", default="local", help="Tenant id passed verbatim to tasks")
+    s.add_argument("--session", default="cli", help="Session id passed verbatim to tasks")
+    s.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
+    s.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(s)
+    s.set_defaults(func=cmd_arabic_dsl)
 
     s = sub.add_parser("serve", help="Run REST API + dashboard")
     s.add_argument("--host", default="127.0.0.1")

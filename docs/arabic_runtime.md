@@ -60,7 +60,8 @@ never emits buttons or write-method `postMessage` calls, and exposes
 
 ## Path 2 integration contract
 
-A future Arabic DSL client should be a thin translator, not a second security
+Phase 7 implements this contract as `mcp-hub arabic-dsl`; see
+[`arabic_dsl.md`](arabic_dsl.md). It is a thin translator, not a second security
 implementation. It can call either transport:
 
 ### MCP transport
@@ -100,6 +101,6 @@ mcp-hub --db catalog.sqlite3 task-approve "$TASK" \
 | `اعرض المهام` | `tasks/list` / `task-list` |
 | `وافق على المهمة <id>` | `tasks/approve` / `task-approve <id>` |
 
-The DSL must never invent approval state, write its own audit log or bypass the
-default-deny `approvals` policy. That is exactly the duplication this split is
-designed to avoid.
+The DSL never invents approval state or bypasses the default-deny `approvals`
+policy. Its SQLite audit table records the original command and result for
+observability; authorization still lives in the MCP gateway.
