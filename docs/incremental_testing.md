@@ -69,6 +69,12 @@ The report includes `fingerprints`, `changed_from`, `adopted_count`,
 `rerun_count`, `stopped_at` and a per-step `state` of `rerun`, `adopted`,
 `failed` or `rejected`.
 
+`incremental.with_linked_fingerprints()` can overlay SHA-256 digests of linked
+files onto individual step fingerprints. `run_incremental(fingerprints=...)`
+accepts that overlay unchanged; callers that supply no overlay keep the exact
+Phase 9 behavior. [`arflow_watch.md`](arflow_watch.md) uses this seam to rerun
+only steps that mention a changed file.
+
 ## Audit
 
 Every executed or adopted step is appended to `arflow_incremental_audit` with

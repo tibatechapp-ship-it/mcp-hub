@@ -12,7 +12,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ __all__ = [
     "policy_fingerprint",
     "step_fingerprint",
     "playbook_fingerprints",
+    "with_linked_fingerprints",
     "load_previous",
     "run_incremental",
 ]
@@ -167,6 +169,30 @@ def playbook_fingerprints(
         }
     )
     return Fingerprints(playbook=playbook_fp, policy=policy_fp, catalog=catalog_fp, steps=steps)
+
+
+def with_linked_fingerprints(
+    fingerprints: Fingerprints,
+    linked: Mapping[int, str],
+) -> Fingerprints:
+    """Overlay per-step digests from linked files onto Phase 9 fingerprints.
+
+    Only steps that mention a linked file receive a different digest, so an
+    unrelated file change does not invalidate the whole playbook.
+    """
+    if not linked:
+        return fingerprints
+    steps = tuple(
+        _sha256({"step": base, "linked": linked[index + 1]}) if index + 1 in linked else base
+        for index, base in enumerate(fingerprints.steps)
+    )
+    playbook = _sha256(
+        {
+            "base": fingerprints.playbook,
+            "linked": [linked.get(index + 1, "") for index in range(len(steps))],
+        }
+    )
+    return replace(fingerprints, playbook=playbook, steps=steps)
 
 
 def _ensure_audit(con: sqlite3.Connection) -> None:
@@ -318,18 +344,19 @@ def run_incremental(
     *,
     incremental: bool = True,
     force_full: bool = False,
+    fingerprints: Fingerprints | None = None,
 ) -> dict[str, Any]:
     """Run a compiled playbook, adopting unchanged successful prior steps."""
     playbook = compiled.playbook
     if not compiled.ok or playbook is None:
         raise arflow.ArflowError("cannot run a playbook with check issues")
-    fingerprints = playbook_fingerprints(compiled, catalog)
+    active_fingerprints = fingerprints or playbook_fingerprints(compiled, catalog)
     context = playbook.context
     previous = load_previous(str(catalog.path), playbook.name)
     adopt = incremental and not force_full
     first_changed = len(playbook.steps)
     if adopt:
-        for index, fingerprint in enumerate(fingerprints.steps):
+        for index, fingerprint in enumerate(active_fingerprints.steps):
             if not _adoptable(previous.get(index + 1), fingerprint):
                 first_changed = index
                 break
@@ -343,7 +370,7 @@ def run_incremental(
     stopped_at: int | None = None
 
     for index, step in enumerate(playbook.steps):
-        fingerprint = fingerprints.steps[index]
+        fingerprint = active_fingerprints.steps[index]
         hard_stop = False
         if adopt and index < first_changed:
             entry = dict(previous[index + 1]["result"])
@@ -409,7 +436,7 @@ def run_incremental(
         "incremental": adopt,
         "force_full": force_full,
         "changed_from": None if first_changed >= len(playbook.steps) else first_changed + 1,
-        "fingerprints": fingerprints.as_dict(),
+        "fingerprints": active_fingerprints.as_dict(),
         "steps": steps,
         "adopted_count": adopted_count,
         "rerun_count": rerun_count,
