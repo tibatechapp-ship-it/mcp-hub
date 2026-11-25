@@ -24,6 +24,7 @@ nav:
   - Incremental Arabic testing: incremental_testing.md
   - Bounded arflow watch: arflow_watch.md
   - Central governance: central_governance.md
+  - Global governance hooks: central_governance_hooks.md
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md

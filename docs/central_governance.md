@@ -91,3 +91,9 @@ text.
 Arabic diagnostics use the same `0/1/2` contract as the CLI: `0` success,
 `1` not found/runtime failure, `2` bad input or policy/task denial under an
 expectation.
+
+For the local equivalent, see
+[Global governance hooks](central_governance_hooks.md): `mcp-hub governance init`
+binds a repository to a tenant/playbook/audit DB, and
+`mcp-hub governance hooks install|check|uninstall` manages global
+`pre-commit`/`pre-push` hooks on the same incremental path.
