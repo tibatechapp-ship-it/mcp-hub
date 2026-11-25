@@ -9,13 +9,14 @@ permissions:
 jobs:
   local-action:
     runs-on: ubuntu-latest
-    env:
-      FIELD: ${{ runner.temp }}/mhc-field
     steps:
       - name: Checkout branch action
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Set temp paths
+        run: echo "FIELD=$RUNNER_TEMP/mhc-field" >> "$GITHUB_ENV"
 
       - name: Prepare isolated playbooks
         run: |
@@ -128,15 +129,17 @@ jobs:
 
   cli-and-policy:
     runs-on: ubuntu-latest
-    env:
-      FIELD: ${{ runner.temp }}/mhc-cli
-      VENV: ${{ runner.temp }}/mhc-cli-venv
-      GIT_CONFIG_GLOBAL: ${{ runner.temp }}/mhc-cli/gitconfig
-      MCP_HUB_GOVERNANCE_HOME: ${{ runner.temp }}/mhc-cli/hooks-home
-      MCP_HUB_BIN: ${{ runner.temp }}/mhc-cli-venv/bin/mcp-hub
-      MCP_HUB_GOVERNANCE_JSON: "1"
-      MCP_HUB_GOVERNANCE_LANG: ar
     steps:
+      - name: Set temp paths
+        run: |
+          echo "FIELD=$RUNNER_TEMP/mhc-cli" >> "$GITHUB_ENV"
+          echo "VENV=$RUNNER_TEMP/mhc-cli-venv" >> "$GITHUB_ENV"
+          echo "GIT_CONFIG_GLOBAL=$RUNNER_TEMP/mhc-cli/gitconfig" >> "$GITHUB_ENV"
+          echo "MCP_HUB_GOVERNANCE_HOME=$RUNNER_TEMP/mhc-cli/hooks-home" >> "$GITHUB_ENV"
+          echo "MCP_HUB_BIN=$RUNNER_TEMP/mhc-cli-venv/bin/mcp-hub" >> "$GITHUB_ENV"
+          echo "MCP_HUB_GOVERNANCE_JSON=1" >> "$GITHUB_ENV"
+          echo "MCP_HUB_GOVERNANCE_LANG=ar" >> "$GITHUB_ENV"
+
       - name: Install released 1.10.0 from PEP 503 in clean runner
         run: |
           set -euo pipefail
