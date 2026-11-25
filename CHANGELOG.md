@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [1.8.0] — 2026-11-25
+
+Phases 7-9 Arabic DSL, playbooks and incremental testing (PRs #53-#55). Builds
+on 1.7.0 without changing the pinned tool manifest, tool/resource specs,
+handler names or the Apps write surface. Release gate: 627 tests passed,
+95.82% coverage, 12/12 CI/Docs checks green.
 
 ### Added
 - **Phase 7 Arabic DSL**: `arabic_dsl.py` parses Arabic (and English alias) commands and pipelines for every existing MCP method family — catalog/discovery, skills, tasks, routing/persona and audit/UI resources — and dispatches each step through `mcp_stateless.handle` with the active policies. No new MCP method, tool spec, resource spec or handler name was introduced.

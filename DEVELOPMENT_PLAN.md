@@ -103,6 +103,8 @@ Make CI measure what the README claims.
 
 **Exit (Phase 6 Arabic full):** shipped in v1.7.0 — shared `normalize_for_match()` matcher, query-only digit folding, stable Arabic diagnostics for policy/task denial, fingerprint mismatch and missing permission, a read-only RTL Apps notice, and a documented Path 2 DSL contract. IDs, actors, reasons and audit text stay verbatim. Verified with 499 tests at 95.21%-95.32% coverage.
 
+**Exit (Phases 7-9 Arabic testing):** shipped in v1.8.0 — `arabic_dsl.py` covers all 27 existing MCP methods under the same policies, `arflow.py` compiles `.arflow` playbooks with query-only variables and optional steps, and `incremental.py` fingerprints compiled steps plus policy/catalog/context state, adopts unchanged successful steps and re-runs after the first change with Arabic expectations. No new MCP method, tool spec, resource spec or Apps write surface. Verified with 627 tests at 95.82% coverage.
+
 ### Phase 6 — publishing (LAST)
 1. Create the PyPI **pending publisher**: project `mcp-hub`, owner `tibatechapp-ship-it`, workflow `publish.yml`, environment `pypi`.
 2. `workflow_dispatch` run of `publish.yml` as a pure build dry-run (no publish) — confirms sdist/wheel contents.

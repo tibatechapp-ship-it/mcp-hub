@@ -18,7 +18,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.7.0
+- **Version:** 1.8.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -31,7 +31,7 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Arabic playbooks:** `mcp-hub arflow check|run --file flow.arflow --json` compiles `.arflow` files with Arabic variables and optional steps into the same DSL commands, with a dedicated playbook audit table; see [`docs/arflow.md`](docs/arflow.md).
 - **Incremental Arabic tests:** `mcp-hub arflow test --file flow.arflow --json` fingerprints compiled steps, policy and catalog state, adopts unchanged successful steps, re-runs after the first change and records verbatim Arabic text in `arflow_incremental_audit`; see [`docs/incremental_testing.md`](docs/incremental_testing.md).
 
-**Unreleased** — Phases 8-9 Arabic playbooks and incremental tests: `.arflow` files compile to the existing 27 DSL commands through the same gateway, with static check codes, query-only variable substitution, `--dry-run`, fail-fast/optional steps, Arabic expectations and a fingerprinted incremental audit. No protocol, manifest or Apps write surface changed. Full list: [CHANGELOG.md](CHANGELOG.md).
+**New in 1.8.0** — Phases 7-9 Arabic DSL, playbooks and incremental tests: Arabic commands compile to the existing 27 MCP methods through the same gateway, `.arflow` files add variables and optional steps, and `arflow test` adopts unchanged steps while re-running changed ones with Arabic expectations and a fingerprinted audit. No protocol, manifest or Apps write surface changed. Verified with 627 tests at 95.82% coverage. Full list: [CHANGELOG.md](CHANGELOG.md).
 
 **New in 1.7.0** — Phase 6 Arabic full: one shared `normalize_for_match()`
 matcher for `route-task` and `query-catalog`, digit folding limited to query
