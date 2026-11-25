@@ -14,6 +14,7 @@ from . import (
     doctor,
     exporters,
     github_enrich,
+    governance,
     incremental,
     provenance,
     registry_api,
@@ -664,6 +665,88 @@ def cmd_arflow(args):
     return int(payload["exit_code"])
 
 
+def cmd_governance_init(args):
+    """Bind a repository to a tenant, playbook and audit DB."""
+    try:
+        payload = governance.init_project(
+            governance.find_repo_root(),
+            tenant=args.tenant,
+            playbook=args.playbook,
+            audit_db=args.audit_db,
+            session=args.session,
+            actor=args.actor,
+            force=args.force,
+        )
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-init", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-init", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
+def cmd_governance_show(args):
+    """Show the local governance binding."""
+    try:
+        payload = governance.show_project(governance.find_repo_root())
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-show", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-show", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
+def cmd_governance_hooks_install(args):
+    """Install managed global governance hooks."""
+    try:
+        payload = governance.install_hooks(governance.find_repo_root())
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-hooks-install", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-hooks-install", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
+def cmd_governance_hooks_check(args):
+    """Check the managed global governance hooks."""
+    try:
+        payload = governance.check_hooks(governance.find_repo_root())
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-hooks-check", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-hooks-check", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
+def cmd_governance_hooks_uninstall(args):
+    """Remove managed global governance hooks safely."""
+    try:
+        payload = governance.uninstall_hooks(governance.find_repo_root())
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-hooks-uninstall", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-hooks-uninstall", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
+def cmd_governance_hook(args):
+    """Run the bounded incremental gate for one Git hook event."""
+    try:
+        payload = governance.run_hook(args.event, lang=_lang(args))
+    except governance.GovernanceError as exc:
+        return _fail_json(args, "governance-hook", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "governance-hook", exc, EXIT_NOT_FOUND)
+    if _lang(args) == "ar" and payload.get("status") == "failed":
+        payload["message_ar"] = f"فشل فحص الحوكمة: {payload.get('reason', 'runtime')}"
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-hub", description="Local-first MCP server catalog")
     p.add_argument("--db", default="mcp_hub.sqlite3", help="Path to SQLite database")
@@ -967,6 +1050,49 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
     _add_lang_option(watch_parser)
     watch_parser.set_defaults(func=cmd_arflow_watch)
+
+    governance_parser = sub.add_parser(
+        "governance", help="Bind repositories and manage global governance hooks"
+    )
+    governance_sub = governance_parser.add_subparsers(dest="governance_cmd", required=True)
+
+    def add_governance_options(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--json", action="store_true", help="Emit compact JSON")
+        _add_lang_option(parser)
+
+    init_parser = governance_sub.add_parser("init", help="Bind the current repository")
+    init_parser.add_argument("--tenant", required=True, help="Tenant id passed verbatim")
+    init_parser.add_argument("--playbook", default=".arflow/security.arflow")
+    init_parser.add_argument("--audit-db", default=".mcp-hub-audit.sqlite3", dest="audit_db")
+    init_parser.add_argument("--session", default="git")
+    init_parser.add_argument("--actor", default="git")
+    init_parser.add_argument("--force", action="store_true", help="Replace an existing binding")
+    add_governance_options(init_parser)
+    init_parser.set_defaults(func=cmd_governance_init)
+
+    show_parser = governance_sub.add_parser("show", help="Show the current binding")
+    add_governance_options(show_parser)
+    show_parser.set_defaults(func=cmd_governance_show)
+
+    hooks_parser = governance_sub.add_parser("hooks", help="Manage global Git hooks")
+    hooks_sub = hooks_parser.add_subparsers(dest="hooks_cmd", required=True)
+
+    install_parser = hooks_sub.add_parser("install", help="Install managed global hooks")
+    add_governance_options(install_parser)
+    install_parser.set_defaults(func=cmd_governance_hooks_install)
+
+    check_parser = hooks_sub.add_parser("check", help="Check managed global hooks")
+    add_governance_options(check_parser)
+    check_parser.set_defaults(func=cmd_governance_hooks_check)
+
+    uninstall_parser = hooks_sub.add_parser("uninstall", help="Safely remove managed hooks")
+    add_governance_options(uninstall_parser)
+    uninstall_parser.set_defaults(func=cmd_governance_hooks_uninstall)
+
+    hook_parser = governance_sub.add_parser("hook", help="Run one bounded Git hook gate")
+    hook_parser.add_argument("--event", choices=("pre-commit", "pre-push"), required=True)
+    add_governance_options(hook_parser)
+    hook_parser.set_defaults(func=cmd_governance_hook)
 
     s = sub.add_parser("serve", help="Run REST API + dashboard")
     s.add_argument("--host", default="127.0.0.1")
