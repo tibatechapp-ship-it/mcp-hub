@@ -1,0 +1,290 @@
+name: v1.10.0 cloud field tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-action:
+    runs-on: ubuntu-latest
+    env:
+      FIELD: ${{ runner.temp }}/mhc-field
+    steps:
+      - name: Checkout branch action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare isolated playbooks
+        run: |
+          set -euo pipefail
+          mkdir -p "$FIELD"
+          cp templates/arflow/security-check.arflow "$FIELD/base.arflow"
+          {
+            cat "$FIELD/base.arflow"
+            printf '\nاعرض الإحصاءات\nتوقع نجاح\n'
+          } > "$FIELD/changed.arflow"
+          wc -l "$FIELD/base.arflow" "$FIELD/changed.arflow"
+
+      - name: Gate check via local action.yml
+        id: gate_check
+        uses: ./
+        with:
+          playbook-path: ${{ env.FIELD }}/base.arflow
+          mode: check
+          lang: ar
+          tenant: cloud-v1100
+          audit-db: ${{ env.FIELD }}/action.sqlite3
+          version: 1.10.0
+
+      - name: Assert gate check exit
+        env:
+          CODE: ${{ steps.gate_check.outputs['exit-code'] }}
+        run: test "$CODE" = "0"
+
+      - name: Gate test via local action.yml
+        id: gate_test_first
+        uses: ./
+        with:
+          playbook-path: ${{ env.FIELD }}/base.arflow
+          mode: test
+          lang: ar
+          tenant: cloud-v1100
+          audit-db: ${{ env.FIELD }}/action.sqlite3
+          version: 1.10.0
+
+      - name: Assert first gate test exit
+        env:
+          CODE: ${{ steps.gate_test_first.outputs['exit-code'] }}
+        run: test "$CODE" = "0"
+
+      - name: Gate test adoption via local action.yml
+        id: gate_test_second
+        uses: ./
+        with:
+          playbook-path: ${{ env.FIELD }}/base.arflow
+          mode: test
+          lang: ar
+          tenant: cloud-v1100
+          audit-db: ${{ env.FIELD }}/action.sqlite3
+          version: 1.10.0
+
+      - name: Assert adopted gate test exit
+        env:
+          CODE: ${{ steps.gate_test_second.outputs['exit-code'] }}
+        run: test "$CODE" = "0"
+
+      - name: Incremental rerun and adoption counts
+        run: |
+          set -euo pipefail
+          BIN="$RUNNER_TEMP/mcp-hub-venv/bin/mcp-hub"
+          DB="$FIELD/incremental.sqlite3"
+          "$BIN" --version
+          "$BIN" --db "$DB" arflow test --file "$FIELD/base.arflow" --json --lang ar > "$FIELD/first.json"
+          "$BIN" --db "$DB" arflow test --file "$FIELD/base.arflow" --json --lang ar > "$FIELD/second.json"
+          "$BIN" --db "$DB" arflow test --file "$FIELD/changed.arflow" --json --lang ar > "$FIELD/third.json"
+          python3 - "$FIELD/first.json" "$FIELD/second.json" "$FIELD/third.json" <<'PY'
+          import json
+          import sys
+
+          first, second, third = [json.loads(open(p, encoding="utf-8").read()) for p in sys.argv[1:]]
+          assert first["rerun_count"] == 3 and first["adopted_count"] == 0, first
+          assert second["adopted_count"] == 3 and second["rerun_count"] == 0, second
+          assert third["changed_from"] == 3 and third["rerun_count"] == 1, third
+          assert third["adopted_count"] == 3, third
+          print("incremental OK: first rerun=3 adopted=0; second adopted=3 rerun=0; changed_from=3 rerun=1")
+          PY
+
+      - name: Cleanup local-action fixtures
+        if: always()
+        run: rm -rf "$FIELD"
+
+  reusable-gate:
+    uses: ./.github/workflows/governance-gate.yml
+    with:
+      playbook-path: mcp-hub-action/templates/arflow/security-check.arflow
+      mode: test
+      lang: ar
+      tenant: cloud-v1100-gate
+      audit-db: mcp-hub-governance-cloud.sqlite3
+      action-ref: v1.10.0
+      version: 1.10.0
+
+  assert-reusable-gate:
+    needs: reusable-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert reusable gate output
+        env:
+          CODE: ${{ needs.reusable-gate.outputs.exit-code }}
+          SUMMARY: ${{ needs.reusable-gate.outputs.summary }}
+        run: |
+          set -euo pipefail
+          printf 'exit=%s summary=%s\n' "$CODE" "$SUMMARY"
+          test "$CODE" = "0"
+          case "$SUMMARY" in *exit=0*) ;; *) exit 1 ;; esac
+
+  cli-and-policy:
+    runs-on: ubuntu-latest
+    env:
+      FIELD: ${{ runner.temp }}/mhc-cli
+      VENV: ${{ runner.temp }}/mhc-cli-venv
+      GIT_CONFIG_GLOBAL: ${{ runner.temp }}/mhc-cli/gitconfig
+      MCP_HUB_GOVERNANCE_HOME: ${{ runner.temp }}/mhc-cli/hooks-home
+      MCP_HUB_BIN: ${{ runner.temp }}/mhc-cli-venv/bin/mcp-hub
+      MCP_HUB_GOVERNANCE_JSON: "1"
+      MCP_HUB_GOVERNANCE_LANG: ar
+    steps:
+      - name: Install released 1.10.0 from PEP 503 in clean runner
+        run: |
+          set -euo pipefail
+          mkdir -p "$FIELD"
+          python3 -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --disable-pip-version-check \
+            --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ \
+            "mcp-hub==1.10.0"
+          "$VENV/bin/mcp-hub" --version | tee "$FIELD/version.txt"
+          "$VENV/bin/mcp-hub" governance --help | tee "$FIELD/governance-help.txt"
+          python3 - "$FIELD/version.txt" "$FIELD/governance-help.txt" <<'PY'
+          import sys
+          from pathlib import Path
+
+          version = Path(sys.argv[1]).read_text(encoding="utf-8")
+          help_text = Path(sys.argv[2]).read_text(encoding="utf-8")
+          assert "1.10.0" in version, version
+          for command in ("init", "show", "hooks", "hook"):
+              assert command in help_text, help_text
+          print("clean runner OK: version 1.10.0 and governance init/show/hooks/hook present")
+          PY
+
+      - name: Prepare isolated git fixture
+        run: |
+          set -euo pipefail
+          mkdir -p "$FIELD/repo/.arflow"
+          cd "$FIELD/repo"
+          git init -q
+          git config user.name field
+          git config user.email field@runner.invalid
+          cat > .arflow/security.arflow <<'AR'
+          # فحص سحابي للسياسة الافتراضية
+          اعرض بيانات السياسة
+          توقع نجاح
+
+          ? اعتمد المهارة demo
+          توقع رفض سياسة
+          AR
+          git add .arflow/security.arflow
+
+      - name: Governance init and show
+        run: |
+          set -euo pipefail
+          cd "$FIELD/repo"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance init \
+            --tenant cloud-v1100 --playbook .arflow/security.arflow \
+            --audit-db .mcp-hub-audit.sqlite3 --session cloud --actor runner \
+            --json --lang ar > "$FIELD/init.json"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance show \
+            --json --lang ar > "$FIELD/show.json"
+          python3 - "$FIELD/init.json" "$FIELD/show.json" <<'PY'
+          import json
+          import sys
+
+          init = json.loads(open(sys.argv[1], encoding="utf-8").read())
+          show = json.loads(open(sys.argv[2], encoding="utf-8").read())
+          assert init["config"]["tenant"] == "cloud-v1100", init
+          assert show["config"]["tenant"] == "cloud-v1100", show
+          print("governance init/show OK: tenant cloud-v1100")
+          PY
+
+      - name: Reject Arabic-Indic digits in tenant id
+        run: |
+          set -uo pipefail
+          cd "$FIELD/repo"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance init \
+            --tenant 'مستأجر٠١' --playbook .arflow/security.arflow \
+            --audit-db .mcp-hub-audit.sqlite3 --session cloud --actor runner \
+            --json --lang ar > "$FIELD/bad-id-out.txt" 2> "$FIELD/bad-id-err.txt"
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q 'message_ar' "$FIELD/bad-id-err.txt"
+          printf 'Arabic-Indic tenant id rejected: exit=%s with Arabic diagnostic\n' "$code"
+
+      - name: Governance hooks install, check, gate, uninstall
+        run: |
+          set -euo pipefail
+          cd "$FIELD/repo"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks install \
+            --json --lang ar > "$FIELD/hooks-install.json"
+          test -f "$MCP_HUB_GOVERNANCE_HOME/pre-commit"
+          test -f "$MCP_HUB_GOVERNANCE_HOME/pre-push"
+          git config --global --get core.hooksPath
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
+            --json --lang ar > "$FIELD/hooks-check.json"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hook \
+            --event pre-commit --json --lang ar > "$FIELD/hook.json"
+          python3 - "$FIELD/hook.json" "$FIELD/repo/.mcp-hub-audit.sqlite3" <<'PY'
+          import json
+          import sqlite3
+          import sys
+
+          report = json.loads(open(sys.argv[1], encoding="utf-8").read())
+          assert report["exit_code"] == 0, report
+          connection = sqlite3.connect(sys.argv[2])
+          rows = connection.execute("SELECT COUNT(*) FROM arflow_incremental_audit").fetchone()[0]
+          assert rows > 0, "hook wrote no incremental audit rows"
+          print(f"governance hook OK: exit=0, incremental audit rows={rows}")
+          PY
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks uninstall \
+            --json --lang ar > "$FIELD/hooks-uninstall.json"
+          "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
+            --json --lang ar > "$FIELD/hooks-check-after.json"
+          if git config --global --get core.hooksPath >/dev/null 2>&1; then
+            echo "global hooks path was not restored" >&2
+            exit 1
+          fi
+
+      - name: Arabic DSL success, default-deny and ID limits
+        run: |
+          set -uo pipefail
+          "$VENV/bin/mcp-hub" --db "$FIELD/dsl.sqlite3" arabic-dsl \
+            --text 'اعرض الكتالوج؛ ابحث عن أداة البحث' --json --lang ar \
+            > "$FIELD/dsl-ok.json" 2> "$FIELD/dsl-ok.err"
+          ok=$?
+          "$VENV/bin/mcp-hub" --db "$FIELD/dsl.sqlite3" arabic-dsl \
+            --text 'اعتمد المهارة demo' --json --lang ar \
+            > "$FIELD/dsl-deny.json" 2> "$FIELD/dsl-deny.err"
+          deny=$?
+          "$VENV/bin/mcp-hub" --db "$FIELD/dsl.sqlite3" arabic-dsl \
+            --text 'حالة المهمة t-٠١' --json --lang ar \
+            > "$FIELD/dsl-id.json" 2> "$FIELD/dsl-id.err"
+          badid=$?
+          set -e
+          test "$ok" -eq 0
+          test "$deny" -eq 2
+          test "$badid" -eq 2
+          python3 - "$FIELD/dsl-ok.json" <<'PY'
+          import json
+          import sys
+
+          json.loads(open(sys.argv[1], encoding="utf-8").read())
+          PY
+          grep -q -- '-10002' "$FIELD/dsl-deny.err"
+          grep -q 'message_ar' "$FIELD/dsl-deny.err"
+          grep -q 'message_ar' "$FIELD/dsl-id.err"
+          python3 - "$FIELD/dsl.sqlite3" <<'PY'
+          import sqlite3
+          import sys
+
+          connection = sqlite3.connect(sys.argv[1])
+          rows = connection.execute("SELECT * FROM arabic_dsl_audit").fetchall()
+          assert rows, "no Arabic DSL audit rows"
+          assert "اعرض الكتالوج" in repr(rows), "original Arabic text not preserved in audit"
+          print(f"Arabic DSL OK: ok=0 denial=2 (-10002) bad-id=2, audit rows={len(rows)}")
+          PY
+
+      - name: Cleanup cli fixtures
+        if: always()
+        run: rm -rf "$FIELD" "$VENV"
