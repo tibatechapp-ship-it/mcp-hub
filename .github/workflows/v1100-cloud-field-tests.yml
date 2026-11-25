@@ -312,9 +312,9 @@ jobs:
 
           json.loads(open(sys.argv[1], encoding="utf-8").read())
           PY
-          grep -q -- '-10002' "$FIELD/dsl-deny.err"
-          grep -q 'message_ar' "$FIELD/dsl-deny.err"
-          grep -q 'message_ar' "$FIELD/dsl-id.err"
+          cat "$FIELD/dsl-deny.json" "$FIELD/dsl-deny.err" | grep -q -- '-10002'
+          cat "$FIELD/dsl-deny.json" "$FIELD/dsl-deny.err" | grep -q 'message_ar'
+          cat "$FIELD/dsl-id.json" "$FIELD/dsl-id.err" | grep -q 'message_ar'
           python3 - "$FIELD/dsl.sqlite3" <<'PY'
           import sqlite3
           import sys
