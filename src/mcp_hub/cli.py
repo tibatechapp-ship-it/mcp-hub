@@ -20,6 +20,7 @@ from . import (
     saved_searches,
     scheduler,
     taxonomy,
+    watch,
 )
 from . import (
     apps as mcp_apps,
@@ -568,6 +569,39 @@ def _arflow_context(args) -> arabic_dsl.DslContext:
     )
 
 
+def cmd_arflow_watch(args):
+    """Watch a playbook and rerun only steps affected by linked files."""
+    try:
+        if getattr(args, "once", False) and int(args.max_cycles) != 1:
+            raise watch.WatchError("--once cannot be combined with --max-cycles > 1")
+        payload = watch.run_watch(
+            _db(args),
+            playbook=args.file,
+            watch_files=tuple(getattr(args, "watch_file", None) or []),
+            context=_arflow_context(args),
+            overrides=_arflow_overrides(args),
+            max_cycles=int(args.max_cycles),
+            interval=float(args.interval),
+            settle=float(args.settle),
+            reason=args.reason,
+        )
+    except watch.WatchError as exc:
+        return _fail_json(args, "arflow-watch", exc, exc.code)
+    except arabic_dsl.DslError as exc:
+        return _fail_json(args, "arflow-watch", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "arflow-watch", exc, EXIT_NOT_FOUND)
+
+    if _lang(args) == "ar" and payload.get("status") != "ok":
+        if payload.get("toctou_mismatch"):
+            prefix = "عدم تطابق البصمة أثناء المراقبة"
+        else:
+            prefix = "فشلت مراقبة الخطة"
+        payload["message_ar"] = f"{prefix}: {payload.get('stop_reason', 'failed')}"
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
 def cmd_arflow(args):
     """Compile, check and run ``.arflow`` playbooks over the Arabic DSL."""
     try:
@@ -860,7 +894,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_arabic_dsl)
 
     arflow_parser = sub.add_parser(
-        "arflow", help="Arabic .arflow playbooks: check, run and incremental test"
+        "arflow", help="Arabic .arflow playbooks: check, run, incremental test and watch"
     )
     arflow_sub = arflow_parser.add_subparsers(dest="arflow_cmd", required=True)
 
@@ -904,6 +938,35 @@ def build_parser() -> argparse.ArgumentParser:
         "test", help="Incremental Arabic test run with expectations and audit"
     )
     add_arflow_options(test_parser, testing=True)
+
+    watch_parser = arflow_sub.add_parser(
+        "watch", help="Bounded watch over a playbook and its linked files"
+    )
+    watch_parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
+    watch_parser.add_argument(
+        "--watch-file",
+        action="append",
+        default=[],
+        dest="watch_file",
+        metavar="PATH",
+        help="Extra linked file relative to the playbook directory (repeatable)",
+    )
+    watch_parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
+    watch_parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
+    watch_parser.add_argument("--session", default="cli", help="Session id passed verbatim")
+    watch_parser.add_argument("--actor", default="local", help="Actor passed verbatim")
+    watch_parser.add_argument("--reason", default="arflow watch", help="Audit reason verbatim")
+    watch_parser.add_argument("--once", action="store_true", help="Run exactly one cycle")
+    watch_parser.add_argument("--max-cycles", type=int, default=1, help="Upper bound (1-1000)")
+    watch_parser.add_argument(
+        "--interval", type=float, default=1.0, help="Seconds between cycles (0-60)"
+    )
+    watch_parser.add_argument(
+        "--settle", type=float, default=0.1, help="Seconds to settle after a change (0-10)"
+    )
+    watch_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(watch_parser)
+    watch_parser.set_defaults(func=cmd_arflow_watch)
 
     s = sub.add_parser("serve", help="Run REST API + dashboard")
     s.add_argument("--host", default="127.0.0.1")

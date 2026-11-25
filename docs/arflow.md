@@ -86,3 +86,6 @@ level.
 
 `ui://mcp-hub/*` resources stay read-only RTL surfaces: playbooks can display
 them but never create write-method `postMessage` calls.
+
+For bounded watching of a playbook and linked files, see
+[`arflow_watch.md`](arflow_watch.md).

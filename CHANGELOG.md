@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Phase 10 bounded `arflow` watch**: `watch.py` watches a `.arflow` playbook plus linked files declared with `# watch:` / `// راقب:` comments or `--watch-file`, overlays SHA-256 digests onto Phase 9 step fingerprints and calls `incremental.run_incremental()` so only affected steps are re-run. The loop is bounded by `--once` or `--max-cycles` (`1`-`1000`), with `--interval` and `--settle` debounce, and stops on `no_changes` or failure.
+- **TOCTOU guard**: each changed cycle re-reads the playbook and watched files after the run; a change during execution is reported as `toctou_mismatch` with exit `1`.
+- **Watch audit**: `arflow_watch_audit` records every cycle with original Arabic playbook text, watched-file digests, linked step fingerprints, changed files, full report and verbatim tenant/session/actor/reason/lang.
+- **CLI**: `mcp-hub arflow watch --file ... [--watch-file PATH] [--var NAME=VALUE] [--reason ...] [--once | --max-cycles N] [--interval S] [--settle S] [--json] [--lang ar]` preserves the `0/1/2` exit contract and Arabic diagnostics.
+
+### Changed
+- `incremental.py` exposes `with_linked_fingerprints()` and `run_incremental(fingerprints=...)`; Phase 9 behavior is unchanged when no overlay is supplied.
+- Added `docs/arflow_watch.md` to the docs nav, README and the incremental testing contract.
+
 ## [1.8.0] — 2026-11-25
 
 Phases 7-9 Arabic DSL, playbooks and incremental testing (PRs #53-#55). Builds
