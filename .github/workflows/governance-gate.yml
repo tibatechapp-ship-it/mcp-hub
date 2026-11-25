@@ -1,0 +1,125 @@
+name: mcp-hub governance gate
+
+on:
+  workflow_call:
+    inputs:
+      playbook-path:
+        description: Path to the .arflow playbook to check, test or run
+        required: true
+        type: string
+      mode:
+        description: Operation to perform - check, test or run
+        required: false
+        default: test
+        type: string
+      incremental:
+        description: Reuse unchanged prior steps (ignored by check)
+        required: false
+        default: true
+        type: boolean
+      changed-only:
+        description: Alias for incremental adoption with fail-fast re-run after changes
+        required: false
+        default: false
+        type: boolean
+      lang:
+        description: Diagnostic language - ar or en
+        required: false
+        default: ar
+        type: string
+      tenant:
+        description: Tenant id passed verbatim to the audit record
+        required: false
+        default: local
+        type: string
+      audit-db:
+        description: SQLite audit database path to cache between runs
+        required: false
+        default: mcp-hub-governance.sqlite3
+        type: string
+      action-ref:
+        description: mcp-hub git ref that provides the root action.yml
+        required: false
+        default: main
+        type: string
+      version:
+        description: mcp-hub version installed from PEP 503
+        required: false
+        default: 1.8.0
+        type: string
+      index-url:
+        description: PEP 503 simple index used to install mcp-hub
+        required: false
+        default: https://tibatechapp-ship-it.github.io/mcp-hub/simple/
+        type: string
+    outputs:
+      exit-code:
+        description: Exit code of the gate command
+        value: ${{ jobs.gate.outputs.exit-code }}
+      summary:
+        description: One-line AR/EN summary of the gate result
+        value: ${{ jobs.gate.outputs.summary }}
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      exit-code: ${{ steps.governance.outputs.exit-code }}
+      summary: ${{ steps.governance.outputs.summary }}
+    steps:
+      - name: Cache SQLite audit database
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ inputs.audit-db }}
+          key: ${{ runner.os }}-mcp-hub-audit-${{ inputs.tenant }}-${{ hashFiles(inputs.playbook-path) }}
+          restore-keys: |
+            ${{ runner.os }}-mcp-hub-audit-${{ inputs.tenant }}-
+
+      - name: Check out mcp-hub action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: tibatechapp-ship-it/mcp-hub
+          ref: ${{ inputs.action-ref }}
+          path: mcp-hub-action
+          persist-credentials: false
+
+      - name: Run governance gate
+        id: governance
+        uses: ./mcp-hub-action
+        with:
+          playbook-path: ${{ inputs.playbook-path }}
+          mode: ${{ inputs.mode }}
+          incremental: ${{ inputs.incremental }}
+          changed-only: ${{ inputs.changed-only }}
+          lang: ${{ inputs.lang }}
+          tenant: ${{ inputs.tenant }}
+          audit-db: ${{ inputs.audit-db }}
+          version: ${{ inputs.version }}
+          index-url: ${{ inputs.index-url }}
+
+      - name: Write AR/EN workflow summary
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.governance.outputs.exit-code }}
+          SUMMARY: ${{ steps.governance.outputs.summary }}
+          MODE: ${{ inputs.mode }}
+          LANG: ${{ inputs.lang }}
+        run: |
+          {
+            echo "## mcp-hub governance gate"
+            echo "- Mode: $MODE"
+            echo "- Language: $LANG"
+            echo "- Exit code: $EXIT_CODE"
+            echo "- Summary: $SUMMARY"
+            echo "## بوابة حوكمة mcp-hub"
+            echo "- الوضع: $MODE"
+            echo "- اللغة: $LANG"
+            echo "- رمز الخروج: $EXIT_CODE"
+            echo "- الملخص: $SUMMARY"
+          } >> "$GITHUB_STEP_SUMMARY"

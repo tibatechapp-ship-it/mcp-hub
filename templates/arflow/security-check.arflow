@@ -1,0 +1,11 @@
+# فحص الأمان الأساسي — يؤكد أن الكتابة ممنوعة افتراضياً
+# Basic security gate: confirms the default-deny approval policy still blocks writes.
+
+اعرض بيانات السياسة
+توقع نجاح
+
+شغّل الفحوصات الصحية
+توقع نجاح
+
+? اعتمد المهارة demo
+توقع رفض سياسة

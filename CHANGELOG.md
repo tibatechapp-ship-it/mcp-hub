@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- **Central governance Phase 1**: root composite `action.yml` installs a pinned `mcp-hub` from the PEP 503 index and runs `arflow check|test|run` with `--json`, `--lang`, `--tenant`, incremental and changed-only flags; it exposes `exit-code`/`summary` outputs and a bilingual `$GITHUB_STEP_SUMMARY`.
+- **Reusable `governance-gate.yml`**: `workflow_call` interface with cached SQLite audit DB, SHA-pinned `actions/cache`/`actions/checkout`, local action invocation and AR/EN workflow summary for linked repos.
+- **Reference playbooks**: `templates/arflow/policy-check.arflow`, `security-check.arflow` and `release-readiness.arflow` exercise policy snapshot, health, default-deny and catalog checks without changing any policy.
 - **Phase 10 bounded `arflow` watch**: `watch.py` watches a `.arflow` playbook plus linked files declared with `# watch:` / `// راقب:` comments or `--watch-file`, overlays SHA-256 digests onto Phase 9 step fingerprints and calls `incremental.run_incremental()` so only affected steps are re-run. The loop is bounded by `--once` or `--max-cycles` (`1`-`1000`), with `--interval` and `--settle` debounce, and stops on `no_changes` or failure.
 - **TOCTOU guard**: each changed cycle re-reads the playbook and watched files after the run; a change during execution is reported as `toctou_mismatch` with exit `1`.
 - **Watch audit**: `arflow_watch_audit` records every cycle with original Arabic playbook text, watched-file digests, linked step fingerprints, changed files, full report and verbatim tenant/session/actor/reason/lang.
@@ -11,6 +14,7 @@
 ### Changed
 - `incremental.py` exposes `with_linked_fingerprints()` and `run_incremental(fingerprints=...)`; Phase 9 behavior is unchanged when no overlay is supplied.
 - Added `docs/arflow_watch.md` to the docs nav, README and the incremental testing contract.
+- Added `docs/central_governance.md` to the docs nav and README feature list, plus `PyYAML` as a dev-only dependency for CI YAML structure tests.
 
 ## [1.8.0] — 2026-11-25
 
