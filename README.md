@@ -28,8 +28,9 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
 - **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`), stable `--lang ar` diagnostics, a read-only RTL approval UI, and one shared matcher for `route-task`/`query-catalog`. Tool names and `inputSchema` stay untouched, ids/actors/reasons keep their original text, and every failure fails open. See [`docs/arabic_runtime.md`](docs/arabic_runtime.md).
 - **Arabic command DSL:** `mcp-hub arabic-dsl --text 'ابحث عن أداة البحث' --dry-run --json` translates Arabic commands and pipelines into existing MCP methods under the same policies; see [`docs/arabic_dsl.md`](docs/arabic_dsl.md).
+- **Arabic playbooks:** `mcp-hub arflow check|run --file flow.arflow --json` compiles `.arflow` files with Arabic variables and optional steps into the same DSL commands, with a dedicated playbook audit table; see [`docs/arflow.md`](docs/arflow.md).
 
-**Unreleased** — Phase 7 Arabic DSL: catalog/discovery, skills, tasks, routing/persona and audit/UI commands executed through one gateway with fail-fast pipelines, `--dry-run` plans and a dedicated SQLite audit table that preserves the original Arabic text. No protocol, manifest or Apps write surface changed. Full list: [CHANGELOG.md](CHANGELOG.md).
+**Unreleased** — Phase 8 Arabic playbooks: `.arflow` files compile to the existing 27 DSL commands through the same gateway, with static check codes, query-only variable substitution, `--dry-run`, fail-fast/optional steps and a playbook-level SQLite audit. No protocol, manifest or Apps write surface changed. Full list: [CHANGELOG.md](CHANGELOG.md).
 
 **New in 1.7.0** — Phase 6 Arabic full: one shared `normalize_for_match()`
 matcher for `route-task` and `query-catalog`, digit folding limited to query
