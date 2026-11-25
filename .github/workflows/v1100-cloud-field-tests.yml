@@ -233,15 +233,21 @@ jobs:
         run: |
           set -euo pipefail
           cd "$FIELD/repo"
+          echo "MARK install"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks install \
             --json --lang ar > "$FIELD/hooks-install.json"
+          echo "MARK files"
           test -f "$MCP_HUB_GOVERNANCE_HOME/hooks/pre-commit"
           test -f "$MCP_HUB_GOVERNANCE_HOME/hooks/pre-push"
+          echo "MARK global-path"
           git config --global --get core.hooksPath
+          echo "MARK check"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
             --json --lang ar > "$FIELD/hooks-check.json"
+          echo "MARK hook"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hook \
             --event pre-commit --json --lang ar > "$FIELD/hook.json"
+          echo "MARK audit"
           python3 - "$FIELD/hook.json" "$FIELD/repo/.mcp-hub-audit.sqlite3" <<'PY'
           import json
           import sqlite3
@@ -254,8 +260,10 @@ jobs:
           assert rows > 0, "hook wrote no incremental audit rows"
           print(f"governance hook OK: exit=0, incremental audit rows={rows}")
           PY
+          echo "MARK uninstall"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks uninstall \
             --json --lang ar > "$FIELD/hooks-uninstall.json"
+          echo "MARK check-after"
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance hooks check \
             --json --lang ar > "$FIELD/hooks-check-after.json"
           if git config --global --get core.hooksPath >/dev/null 2>&1; then
