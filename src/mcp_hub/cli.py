@@ -27,7 +27,7 @@ from . import (
 from . import (
     telemetry as telemetry_mod,
 )
-from .arabic_runtime import arabic_error_fields, normalize_arabic_text, resolve_lang
+from .arabic_runtime import arabic_error_fields, normalize_query_text, resolve_lang
 from .database import Catalog
 from .models import Server
 
@@ -45,8 +45,9 @@ def _lang(args) -> str:
     return resolve_lang(getattr(args, "lang", None))
 
 
-def _norm(value):
-    return normalize_arabic_text(value) if isinstance(value, str) else value
+def _query(value):
+    """Normalize a free-text query only; never pass identifiers through this."""
+    return normalize_query_text(value) if isinstance(value, str) else value
 
 
 def _add_lang_option(parser) -> None:
@@ -197,7 +198,7 @@ def cmd_route_task(args):
 
     try:
         result = route_task(
-            _norm(args.task),
+            _query(args.task),
             specs=TOOL_SPECS,
             registry_path=args.registry,
             limit=args.limit,
@@ -261,9 +262,9 @@ def cmd_skill_get(args):
 def cmd_skill_approve(args):
     from .skills import SkillRegistry
 
-    name = _norm(args.name)
+    name = args.name
     try:
-        digest = SkillRegistry(_db(args)).approve(name, _norm(args.actor))
+        digest = SkillRegistry(_db(args)).approve(name, args.actor)
     except KeyError as exc:
         return _fail_json(args, "skill-approve", exc, EXIT_NOT_FOUND)
     except (ValueError, OSError) as exc:
@@ -274,9 +275,9 @@ def cmd_skill_approve(args):
 def cmd_skill_revoke(args):
     from .skills import SkillRegistry
 
-    name = _norm(args.name)
+    name = args.name
     try:
-        removed = SkillRegistry(_db(args)).revoke(name, _norm(args.actor))
+        removed = SkillRegistry(_db(args)).revoke(name, args.actor)
     except (ValueError, OSError) as exc:
         return _fail_json(args, "skill-revoke", exc, EXIT_BAD_INPUT)
     return _emit_json(args, {"name": name, "approved": False, "removed": removed})
@@ -310,9 +311,7 @@ def cmd_task_list(args):
     from .tasks import TaskError, TaskStore
 
     try:
-        result = TaskStore(_db(args)).list(
-            _norm(args.tenant), _norm(args.session), limit=args.limit
-        )
+        result = TaskStore(_db(args)).list(args.tenant, args.session, limit=args.limit)
     except TaskError as exc:
         return _fail_json(args, "task-list", exc, EXIT_BAD_INPUT)
     return _emit_json(args, result)
@@ -323,11 +322,11 @@ def cmd_task_approve(args):
 
     try:
         result = TaskStore(_db(args)).approve(
-            _norm(args.task_id),
-            _norm(args.tenant),
-            _norm(args.session),
-            actor=_norm(args.actor),
-            reason=_norm(args.reason),
+            args.task_id,
+            args.tenant,
+            args.session,
+            actor=args.actor,
+            reason=args.reason,
         )
     except TaskError as exc:
         code = EXIT_NOT_FOUND if "not found" in str(exc).lower() else EXIT_BAD_INPUT

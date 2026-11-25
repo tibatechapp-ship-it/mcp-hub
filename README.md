@@ -26,7 +26,7 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Docs:** <https://tibatechapp-ship-it.github.io/mcp-hub/> (source in [`docs/`](docs/index.md))
 - **العربية:** [فهرس خوادم وأدوات MCP](docs/catalog_ar.md) — unified registry in [`registry/mcp_servers.json`](registry/mcp_servers.json)
 - **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
-- **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`); tool names and `inputSchema` stay untouched and every failure fails open.
+- **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`), stable `--lang ar` diagnostics, a read-only RTL approval UI, and one shared matcher for `route-task`/`query-catalog`. Tool names and `inputSchema` stay untouched, ids/actors/reasons keep their original text, and every failure fails open. See [`docs/arabic_runtime.md`](docs/arabic_runtime.md).
 
 **New in 1.6.0** — Phase 5 actionable approvals: a default-deny `approvals`
 policy with `skills/approve`, `skills/revoke`, `tasks/approve` and scoped

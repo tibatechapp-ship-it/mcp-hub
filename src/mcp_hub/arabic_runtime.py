@@ -27,6 +27,7 @@ from .live_sync import (
     refresh_from_upstream,
     save_cache,
 )
+from .mcp_stateless import POLICY_DENIED, TASK_DENIED
 
 ENV_RUNTIME = "MCP_HUB_AR_RUNTIME"
 ENV_CACHE = "MCP_HUB_AR_CACHE"
@@ -42,7 +43,9 @@ _DIGIT_MAP = str.maketrans(
         **{chr(0x06F0 + i): str(i) for i in range(10)},  # ۰-۹
     }
 )
-_CHAR_MAP = str.maketrans({"ـ": None, "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي"})
+_DIACRITICS = re.compile(r"[\u064b-\u0652\u0640]")  # harakat + tatweel
+_DISPLAY_CHAR_MAP = str.maketrans({"ـ": None, "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي"})
+_MATCH_CHAR_MAP = str.maketrans({"ـ": None, "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه"})
 _DIAGNOSTIC_AR = {0: "تم", 1: "غير موجود", 2: "مدخل غير صالح"}
 _PHRASES: tuple[tuple[str, str], ...] = (
     ("Search the catalog", "ابحث في الكتالوج"),
@@ -74,13 +77,31 @@ def _env_flag(name: str) -> bool:
 
 
 def normalize_arabic_text(text: str) -> str:
-    """Normalize user text without changing protocol names or schemas.
+    """Normalize query/display text without changing stored originals.
 
-    Arabic-Indic and Extended Arabic-Indic digits become ASCII digits, tatweel
-    is removed, alef/ya variants are folded, and whitespace is collapsed.
+    Digits, tatweel and alef/ya variants are folded. Ta-marbuta is kept as-is
+    in this display form; use ``normalize_for_match`` for search matching.
     """
-    normalized = text.translate(_DIGIT_MAP).translate(_CHAR_MAP)
+    normalized = text.translate(_DIGIT_MAP).translate(_DISPLAY_CHAR_MAP)
     return " ".join(normalized.split())
+
+
+def normalize_for_match(text: str, *, strip_al: bool = False) -> str:
+    """Shared matcher for Arabic and mixed-language search/routing.
+
+    Removes harakat and tatweel, folds digits, alef/ya and ta-marbuta to haa,
+    lowercases, and optionally strips a leading definite article.
+    """
+    value = _DIACRITICS.sub("", text).translate(_DIGIT_MAP).translate(_MATCH_CHAR_MAP)
+    value = " ".join(value.lower().split())
+    if strip_al and len(value) > 4 and value.startswith("ال"):
+        value = value[2:]
+    return value
+
+
+def normalize_query_text(text: str) -> str:
+    """Normalize a user query; identifiers must never go through this."""
+    return normalize_for_match(text)
 
 
 def resolve_lang(value: str | None = None, env_name: str = ENV_LANG) -> str:
@@ -88,6 +109,30 @@ def resolve_lang(value: str | None = None, env_name: str = ENV_LANG) -> str:
     raw = value if value is not None else os.environ.get(env_name, "")
     candidate = normalize_arabic_text(str(raw)).strip().lower()
     return "ar" if candidate in {"ar", "arabic", "العربية"} else "en"
+
+
+def arabic_diagnostic(exc: BaseException, code: int) -> str:
+    """Map an exception to Arabic text without adding JSON keys."""
+    reason = str(getattr(exc, "reason", exc))
+    folded = reason.lower()
+    mcp_code = getattr(exc, "code", None)
+    fingerprint = ("fingerprint", "digest", "sha256", "toctou")
+    permission = ("permission", "not permitted", "forbidden")
+    if any(token in folded for token in fingerprint) or "بصمة" in reason:
+        prefix = "عدم تطابق البصمة"
+    elif any(token in folded for token in permission) or "صلاحية" in reason:
+        prefix = "الصلاحية غير متاحة"
+    elif (
+        mcp_code == POLICY_DENIED
+        or "policy" in folded
+        or ("denied" in folded and "task" not in folded)
+    ):
+        prefix = "رفضت السياسة العملية"
+    elif mcp_code == TASK_DENIED or "task" in folded or "scope" in folded:
+        prefix = "رفضت المهمة"
+    else:
+        prefix = _DIAGNOSTIC_AR.get(code, "خطأ")
+    return f"{prefix}: {reason}"
 
 
 def arabic_error_fields(
@@ -101,7 +146,7 @@ def arabic_error_fields(
         "exit_code": code,
     }
     if resolve_lang(lang) == "ar":
-        fields["message_ar"] = f"{_DIAGNOSTIC_AR.get(code, 'خطأ')}: {exc}"
+        fields["message_ar"] = arabic_diagnostic(exc, code)
     return fields
 
 

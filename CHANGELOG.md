@@ -3,10 +3,15 @@
 ## [Unreleased]
 
 ### Added
-- **Phase 6 Path 1 — native Arabic runtime**: `normalize_arabic_text()` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII, removes tatweel and folds alef/ya variants; the approval CLI and `route-task` apply it to user input.
-- **Arabic diagnostics**: the five approval CLI commands accept `--lang ar` (or `MCP_HUB_LANG`) and add a stable `message_ar` field to JSON failures without changing the compact output, stderr routing or exit codes `0`/`1`/`2`.
-- **RTL read-only Apps UI**: `ui://` resources accept `params.lang = "ar"` or `MCP_HUB_UI_LANG`, render `lang="ar" dir="rtl"` with re-computed script hashes and report `lang`/`dir` in the JSON fallback.
+- **Phase 6 Path 1 — native Arabic runtime (PR #51)**: `normalize_arabic_text()` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII, removes tatweel and folds alef/ya variants; `route-task` applies it to free-text queries.
+- **Phase 6 Arabic full — shared matcher**: `normalize_for_match()` is the single folding rule for `semantic_router` and `catalog_query`, adding harakat removal, ta-marbuta folding and optional definite-article stripping without touching stored metadata.
+- **Arabic diagnostics**: the five approval CLI commands accept `--lang ar` (or `MCP_HUB_LANG`) and add a stable `message_ar` field to JSON failures without changing the compact output, stderr routing or exit codes `0`/`1`/`2`. Diagnostics now cover policy denial (`-10002`), task denial (`-10003`), skill fingerprint mismatch and missing permission.
+- **RTL read-only Apps UI**: `ui://` resources accept `params.lang = "ar"` or `MCP_HUB_UI_LANG`, render `lang="ar" dir="rtl"` with re-computed script hashes, show an explicit read-only notice, emit no buttons or write-method `postMessage` calls, and report `lang`/`dir` in the JSON fallback.
 - **Path 2 interface contract**: `docs/arabic_runtime.md` documents how a future Arabic MCP Client / DSL translates phrases into existing MCP methods or `--json` CLI calls without duplicating policy, audit or approval state.
+
+### Changed
+- Digit folding now applies only to query/counter text. `task_id`, `tenant_id`, `session_id`, skill names, actors, reasons and audit text keep their original bytes; Indic digits in an id fail with exit code `2` instead of being silently rewritten.
+- `semantic_router` no longer duplicates diacritics/tatweel/alef/ta-marbuta rules; it delegates to `arabic_runtime`. The pinned tool manifest, tool specs, resource specs and handler names are unchanged.
 
 ## [1.6.0] — 2026-11-25
 

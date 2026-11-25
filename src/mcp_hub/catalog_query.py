@@ -13,6 +13,8 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from .arabic_runtime import normalize_for_match
+
 _PACKAGE_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _PACKAGE_DIR.parent.parent
 
@@ -177,19 +179,29 @@ def query_catalog(
         raise ValueError("access_mode must be read-only or read-write")
     limit = max(1, min(int(limit), 200))
     data = load_registry(registry_path)
-    category_value = category.strip().lower() if category else None
-    tag_value = tag.strip().lower() if tag else None
-    profile_value = profile.strip() if profile else None
+    # Arabic-aware matching is applied to query filters only; stored metadata
+    # in the returned rows stays byte-for-byte from the registry.
+    category_value = normalize_for_match(category.strip(), strip_al=True) if category else None
+    tag_value = normalize_for_match(tag.strip(), strip_al=True) if tag else None
+    profile_value = normalize_for_match(profile.strip(), strip_al=True) if profile else None
 
     results: list[dict[str, Any]] = []
     for row in iter_entries(data, env=env, profiles_dir=profiles_dir):
         if kind != "all" and row["kind"] != kind:
             continue
-        if category_value and str(row["category"]).lower() != category_value:
+        if (
+            category_value
+            and normalize_for_match(str(row["category"]), strip_al=True) != category_value
+        ):
             continue
-        if tag_value and tag_value not in row["tags"]:
+        if tag_value and not any(
+            normalize_for_match(str(item), strip_al=True) == tag_value for item in row["tags"]
+        ):
             continue
-        if profile_value and profile_value not in row["task_profiles"]:
+        if profile_value and not any(
+            normalize_for_match(str(item), strip_al=True) == profile_value
+            for item in row["task_profiles"]
+        ):
             continue
         if access_mode and row["access_mode"] != access_mode:
             continue
