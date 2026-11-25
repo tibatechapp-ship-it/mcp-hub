@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-11-25
+
+Phase 6 Arabic line (PRs #51-#52). Builds on the 1.6.0 approval surface without
+changing the pinned tool manifest or the stateless protocol version. Release
+gate: 499 tests passed, 95.21%-95.32% coverage, 12/12 CI/Docs checks green.
+
 ### Added
 - **Phase 6 Path 1 — native Arabic runtime (PR #51)**: `normalize_arabic_text()` maps Arabic-Indic and Extended Arabic-Indic digits to ASCII, removes tatweel and folds alef/ya variants; `route-task` applies it to free-text queries.
 - **Phase 6 Arabic full — shared matcher**: `normalize_for_match()` is the single folding rule for `semantic_router` and `catalog_query`, adding harakat removal, ta-marbuta folding and optional definite-article stripping without touching stored metadata.

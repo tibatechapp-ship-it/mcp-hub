@@ -28,7 +28,7 @@ account:
 
 ```bash
 pip install --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ mcp-hub
-pip install --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ "mcp-hub==1.6.0"
+pip install --index-url https://tibatechapp-ship-it.github.io/mcp-hub/simple/ "mcp-hub==1.7.0"
 ```
 
 Every artifact link carries a `#sha256=` fragment generated from the bytes of

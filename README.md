@@ -18,7 +18,7 @@
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.6.0
+- **Version:** 1.7.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -28,12 +28,13 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Capability profiles:** five JSON task profiles in [`profiles/`](profiles/), documented in [Arabic](docs/task_profiles_ar.md); `tags`, `task_profiles`, `access_mode` and `requires_env` are additive metadata.
 - **Arabic runtime:** opt-in `tools/list` localization with an upstream-only cache (`MCP_HUB_AR_RUNTIME=1`), stable `--lang ar` diagnostics, a read-only RTL approval UI, and one shared matcher for `route-task`/`query-catalog`. Tool names and `inputSchema` stay untouched, ids/actors/reasons keep their original text, and every failure fails open. See [`docs/arabic_runtime.md`](docs/arabic_runtime.md).
 
-**New in 1.6.0** — Phase 5 actionable approvals: a default-deny `approvals`
-policy with `skills/approve`, `skills/revoke`, `tasks/approve` and scoped
-`tasks/list`, content-bound SHA-256 fingerprint checks that close the TOCTOU
-gap between review and write, and a JSON/exit-code contract (`--json`,
-`0`/`1`/`2`) on the five approval CLI commands. Verified with 485 tests at
-95.11%-95.22% coverage. Full list: [CHANGELOG.md](CHANGELOG.md).
+**New in 1.7.0** — Phase 6 Arabic full: one shared `normalize_for_match()`
+matcher for `route-task` and `query-catalog`, digit folding limited to query
+and counter text, stable Arabic diagnostics for policy/task denial, skill
+fingerprint mismatch and missing permission, and a read-only RTL Apps notice.
+IDs, actors, reasons and audit text stay verbatim; pinned tool names and
+`inputSchema` are unchanged. Verified with 499 tests at 95.21%-95.32%
+coverage. Full list: [CHANGELOG.md](CHANGELOG.md).
 
 Builds on the 1.5.0 Arabic registry, stateless MCP core, bilingual
 policy/router layer, durable skills/tasks, persona simulator and optional

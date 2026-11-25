@@ -101,6 +101,8 @@ Make CI measure what the README claims.
 
 **Exit (product Phase 5):** shipped in v1.6.0 — default-deny `approvals` policy, actionable MCP approval methods, digest-bound TOCTOU guard on skill approvals, atomic task approval, the five approval CLI commands with `--json` and exit codes `0`/`1`/`2`, and read-only Apps action metadata. No new migration and no change to the pinned tool manifest. Verified with 485 tests at 95.11%-95.22% coverage.
 
+**Exit (Phase 6 Arabic full):** shipped in v1.7.0 — shared `normalize_for_match()` matcher, query-only digit folding, stable Arabic diagnostics for policy/task denial, fingerprint mismatch and missing permission, a read-only RTL Apps notice, and a documented Path 2 DSL contract. IDs, actors, reasons and audit text stay verbatim. Verified with 499 tests at 95.21%-95.32% coverage.
+
 ### Phase 6 — publishing (LAST)
 1. Create the PyPI **pending publisher**: project `mcp-hub`, owner `tibatechapp-ship-it`, workflow `publish.yml`, environment `pypi`.
 2. `workflow_dispatch` run of `publish.yml` as a pure build dry-run (no publish) — confirms sdist/wheel contents.
