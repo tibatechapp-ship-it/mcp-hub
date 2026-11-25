@@ -105,6 +105,8 @@ Make CI measure what the README claims.
 
 **Exit (Phases 7-9 Arabic testing):** shipped in v1.8.0 — `arabic_dsl.py` covers all 27 existing MCP methods under the same policies, `arflow.py` compiles `.arflow` playbooks with query-only variables and optional steps, and `incremental.py` fingerprints compiled steps plus policy/catalog/context state, adopts unchanged successful steps and re-runs after the first change with Arabic expectations. No new MCP method, tool spec, resource spec or Apps write surface. Verified with 627 tests at 95.82% coverage.
 
+**Exit (bounded watch + central governance):** shipped in v1.9.0 — `watch.py` overlays watched-file SHA-256 digests onto Phase 9 step fingerprints and reruns only affected steps within a bounded cycle budget, and a root composite `action.yml` plus reusable `governance-gate.yml` let linked repos run policy-gated `.arflow` checks as mandatory gates with bilingual summaries. No pinned manifest, spec, handler or Apps write-surface change. Verified with 653 tests at 95.89% coverage.
+
 ### Phase 6 — publishing (LAST)
 1. Create the PyPI **pending publisher**: project `mcp-hub`, owner `tibatechapp-ship-it`, workflow `publish.yml`, environment `pypi`.
 2. `workflow_dispatch` run of `publish.yml` as a pure build dry-run (no publish) — confirms sdist/wheel contents.

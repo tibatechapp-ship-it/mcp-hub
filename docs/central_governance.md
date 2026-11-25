@@ -24,7 +24,7 @@ The root [`action.yml`](https://github.com/tibatechapp-ship-it/mcp-hub/blob/main
 | `lang` | `ar` | Diagnostic language: `ar` or `en` |
 | `tenant` | `local` | Tenant id passed verbatim to the audit record |
 | `audit-db` | `mcp-hub-governance.sqlite3` | SQLite audit database path |
-| `version` | `1.8.0` | mcp-hub version installed from PEP 503 |
+| `version` | `1.9.0` | mcp-hub version installed from PEP 503 |
 | `index-url` | <https://tibatechapp-ship-it.github.io/mcp-hub/simple/> | PEP 503 simple index |
 
 It outputs `exit-code` and a one-line AR/EN `summary`, and writes a bilingual

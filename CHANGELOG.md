@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.0] — 2026-11-25
+
+Central governance Phase 1 plus bounded `arflow` watch (PRs #56-#58). Builds on
+1.8.0 without changing the pinned tool manifest, tool/resource specs, handler
+names or the Apps write surface. Release gate: 653 tests passed, 95.89% coverage,
+12/12 CI/Docs checks green.
 
 ### Added
 - **Central governance Phase 1**: root composite `action.yml` installs a pinned `mcp-hub` from the PEP 503 index and runs `arflow check|test|run` with `--json`, `--lang`, `--tenant`, incremental and changed-only flags; it exposes `exit-code`/`summary` outputs and a bilingual `$GITHUB_STEP_SUMMARY`.

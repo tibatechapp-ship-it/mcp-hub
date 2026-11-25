@@ -300,4 +300,4 @@ def test_version_flag_exits_zero(capsys):
     assert exc.value.code == 0
     output = capsys.readouterr().out
     assert "mcp-hub" in output
-    assert "1.8.0" in output
+    assert "1.9.0" in output
