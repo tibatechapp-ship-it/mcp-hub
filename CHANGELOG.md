@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.10.0] — 2026-11-25
+
+Central governance Phase 2 local gates (PR #59), shipped so `governance init|show` and the global Git hooks are available in the official wheel and PEP 503 index. No pinned manifest, tool/resource spec, handler or Apps write-surface change. Release gate: 703 tests passed at 95.61% local coverage.
+
 - **Central governance Phase 2**: `mcp-hub governance init|show` binds a repository to a tenant, `.arflow` playbook and SQLite audit DB; `governance hooks install|check|uninstall` manages marker-protected global `pre-commit`/`pre-push` scripts without clobbering a foreign `core.hooksPath`.
 - **Bounded local gate**: `governance hook --event pre-commit|pre-push` skips unbound/empty/no-relevant-change repos cleanly, then reuses `arflow.build()` plus Phase 9/10 linked-fingerprint incremental runs and the existing `arflow_incremental_audit` table. `--json`, `--lang ar|en` and exit codes `0/1/2` are preserved.
 - **Safety**: IDs remain `[A-Za-z0-9._:@-]{1,128}` with Arabic-Indic digits rejected; paths must stay inside the worktree; uninstall removes only managed scripts and restores the previous global hooks path. Docs cover Termux and isolated config roots.

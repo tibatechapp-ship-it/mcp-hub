@@ -1,4 +1,4 @@
-"""Build-config consistency checks (v1.4.1 hardening, v1.9.0 release gate)."""
+"""Build-config consistency checks (v1.4.1 hardening, v1.10.0 release gate)."""
 
 from __future__ import annotations
 
@@ -32,5 +32,15 @@ def test_release_attaches_checksums_and_docs_builds_simple_index() -> None:
 
 def test_release_version_is_consistent() -> None:
     pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert re.search(r'^version = "1\.9\.0"$', pyproject, re.MULTILINE)
-    assert __version__ == "1.9.0"
+    assert re.search(r'^version = "1\.10\.0"$', pyproject, re.MULTILINE)
+    assert __version__ == "1.10.0"
+
+
+def test_governance_defaults_track_release_version() -> None:
+    action = (_ROOT / "action.yml").read_text(encoding="utf-8")
+    gate = (_ROOT / ".github" / "workflows" / "governance-gate.yml").read_text(encoding="utf-8")
+    install = (_ROOT / "docs" / "install.md").read_text(encoding="utf-8")
+
+    assert f"default: {__version__}" in action
+    assert f"default: {__version__}" in gate
+    assert f'"mcp-hub=={__version__}"' in install

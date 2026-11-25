@@ -107,6 +107,8 @@ Make CI measure what the README claims.
 
 **Exit (bounded watch + central governance):** shipped in v1.9.0 — `watch.py` overlays watched-file SHA-256 digests onto Phase 9 step fingerprints and reruns only affected steps within a bounded cycle budget, and a root composite `action.yml` plus reusable `governance-gate.yml` let linked repos run policy-gated `.arflow` checks as mandatory gates with bilingual summaries. No pinned manifest, spec, handler or Apps write-surface change. Verified with 653 tests at 95.89% coverage.
 
+**Exit (central governance Phase 2):** shipped in v1.10.0 — `governance init|show` binds a repo to a tenant, `.arflow` playbook and SQLite audit DB; marker-protected global `pre-commit`/`pre-push` hooks run the same incremental gates only when linked files change, with `--json`, `--lang` and exit codes `0`/`1`/`2`. No policy, manifest, spec, handler or Apps write-surface change.
+
 ### Phase 6 — publishing (LAST)
 1. Create the PyPI **pending publisher**: project `mcp-hub`, owner `tibatechapp-ship-it`, workflow `publish.yml`, environment `pypi`.
 2. `workflow_dispatch` run of `publish.yml` as a pure build dry-run (no publish) — confirms sdist/wheel contents.

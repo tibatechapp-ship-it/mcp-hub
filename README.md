@@ -21,7 +21,7 @@ the signed GitHub Release assets. See [`docs/install.md`](docs/install.md).
 
 Local-first catalog for MCP servers: sync from the MCP registry, enrich from GitHub, classify, search (LIKE/FTS5), save alerts/searches, and export to JSON/CSV/Markdown. Ships as a pure-Python + SQLite core with an optional FastAPI dashboard.
 
-- **Version:** 1.9.0
+- **Version:** 1.10.0
 - **DB:** SQLite (portable, single file)
 - **API:** optional FastAPI + dashboard (`pip install "mcp-hub[api]"`)
 - **MCP server:** `pip install "mcp-hub[mcp-server]"` → `mcp-hub-server`
@@ -35,6 +35,8 @@ Local-first catalog for MCP servers: sync from the MCP registry, enrich from Git
 - **Incremental Arabic tests:** `mcp-hub arflow test --file flow.arflow --json` fingerprints compiled steps, policy and catalog state, adopts unchanged successful steps, re-runs after the first change and records verbatim Arabic text in `arflow_incremental_audit`; see [`docs/incremental_testing.md`](docs/incremental_testing.md).
 - **Bounded `arflow` watch:** `mcp-hub arflow watch --file flow.arflow --once --json` watches the playbook and linked files, overlays SHA-256 file digests onto step fingerprints, reruns only affected steps and stops after a bounded number of cycles; see [`docs/arflow_watch.md`](docs/arflow_watch.md).
 - **Central governance:** a root composite `action.yml` and reusable `governance-gate.yml` let repos such as `tayf` and `novamind-core` run policy-gated Arabic `.arflow` checks as mandatory GitHub Ruleset gates; reference templates live in [`templates/arflow/`](templates/arflow/) and the wiring is documented in [`docs/central_governance.md`](docs/central_governance.md). Local `mcp-hub governance init` plus `governance hooks install|check|uninstall` add tenant-bound global Git hooks on the same incremental path; see [`docs/central_governance_hooks.md`](docs/central_governance_hooks.md).
+
+**New in 1.10.0** — local governance is now in the official wheel and PEP 503 index: `mcp-hub governance init|show` binds a repo to a tenant/playbook/audit DB, and `governance hooks install|check|uninstall|hook` runs tenant-bound, marker-protected global `pre-commit`/`pre-push` gates. No policy, manifest, spec, handler or Apps write-surface change. Full list: [CHANGELOG.md](CHANGELOG.md).
 
 **New in 1.9.0** — central governance and bounded `arflow` watch: a root composite `action.yml` plus reusable `governance-gate.yml` install a pinned `mcp-hub` from the PEP 503 index and run `arflow check|test|run` with bilingual summaries for linked repos; `arflow watch` overlays watched-file SHA-256 digests onto step fingerprints and reruns only affected steps under the same default-deny policy with a TOCTOU guard. No protocol, manifest, spec, handler or Apps write surface changed. Verified with 653 tests at 95.89% coverage. Full list: [CHANGELOG.md](CHANGELOG.md).
 
