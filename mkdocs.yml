@@ -19,6 +19,7 @@ nav:
   - Telemetry and MCP Apps: phase4.md
   - Actionable approvals: phase5.md
   - Native Arabic runtime: arabic_runtime.md
+  - Arabic command DSL: arabic_dsl.md
   - Security model: security.md
   - Operations: operations.md
   - Arabic catalog: catalog_ar.md

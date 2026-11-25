@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+- **Phase 7 Arabic DSL**: `arabic_dsl.py` parses Arabic (and English alias) commands and pipelines for every existing MCP method family — catalog/discovery, skills, tasks, routing/persona and audit/UI resources — and dispatches each step through `mcp_stateless.handle` with the active policies. No new MCP method, tool spec, resource spec or handler name was introduced.
+- **Dry-run plans**: `mcp-hub arabic-dsl --dry-run --json` returns the translated method, parameters, approval requirement and read-only UI flag before any handler runs; pipelines fail fast on the first denial and report `stopped_at`.
+- **Unified audit**: every planned/executed step is appended to `arabic_dsl_audit` SQLite table with the original Arabic command text, resolved method, parameters, result, status and exit code. Identifiers, actors and reasons are never normalized.
+
+### Changed
+- `docs/arabic_runtime.md` now points to the implemented Path 2 contract in the new `docs/arabic_dsl.md` page (added to mkdocs nav).
+
 ## [1.7.0] — 2026-11-25
 
 Phase 6 Arabic line (PRs #51-#52). Builds on the 1.6.0 approval surface without
