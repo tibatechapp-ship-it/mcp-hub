@@ -10,6 +10,7 @@ from . import (
     __version__,
     alerts,
     arabic_dsl,
+    arflow,
     doctor,
     exporters,
     github_enrich,
@@ -547,6 +548,70 @@ def cmd_arabic_dsl(args):
     return int(payload["exit_code"])
 
 
+def _arflow_overrides(args) -> dict[str, str]:
+    overrides: dict[str, str] = {}
+    for pair in getattr(args, "var", None) or []:
+        name, separator, value = pair.partition("=")
+        if not separator or not name.strip():
+            raise arflow.ArflowError("invalid --var, expected name=value")
+        overrides[name.strip()] = value
+    return overrides
+
+
+def _arflow_context(args) -> arabic_dsl.DslContext:
+    return arabic_dsl.DslContext(
+        tenant_id=args.tenant,
+        session_id=args.session,
+        actor=args.actor,
+        lang=_lang(args),
+    )
+
+
+def cmd_arflow(args):
+    """Compile, check and run ``.arflow`` playbooks over the Arabic DSL."""
+    try:
+        text = Path(args.file).read_text(encoding="utf-8")
+        overrides = _arflow_overrides(args)
+        context = _arflow_context(args)
+        if args.arflow_cmd == "check":
+            payload = arflow.check(
+                text, name=Path(args.file).stem, context=context, overrides=overrides
+            )
+            if payload["exit_code"] != EXIT_OK:
+                first = payload["issues"][0]["message"] if payload["issues"] else "check failed"
+                exc = arflow.ArflowError(first)
+                fields = arabic_error_fields("arflow-check", exc, EXIT_BAD_INPUT, _lang(args))
+                fields["issues"] = payload["issues"]
+                if getattr(args, "json", False):
+                    print(
+                        json.dumps(fields, ensure_ascii=False, separators=(",", ":")),
+                        file=sys.stderr,
+                    )
+                else:
+                    print(f"arflow-check failed: {first}", file=sys.stderr)
+                    if fields.get("message_ar"):
+                        print(fields["message_ar"], file=sys.stderr)
+                return EXIT_BAD_INPUT
+            _emit_json(args, payload)
+            return EXIT_OK
+
+        compiled = arflow.build(
+            text, name=Path(args.file).stem, context=context, overrides=overrides
+        )
+        if not compiled.ok:
+            first = compiled.issues[0].message if compiled.issues else "playbook invalid"
+            raise arflow.ArflowError(first)
+        payload = arflow.run(_db(args), compiled, dry_run=args.dry_run)
+    except arflow.ArflowError as exc:
+        return _fail_json(args, "arflow", exc, exc.code)
+    except arabic_dsl.DslError as exc:
+        return _fail_json(args, "arflow", exc, exc.code)
+    except Exception as exc:  # noqa: BLE001 - CLI failures stay structured
+        return _fail_json(args, "arflow", exc, EXIT_NOT_FOUND)
+    _emit_json(args, payload)
+    return int(payload["exit_code"])
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-hub", description="Local-first MCP server catalog")
     p.add_argument("--db", default="mcp_hub.sqlite3", help="Path to SQLite database")
@@ -775,6 +840,30 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true", help="Emit compact JSON")
     _add_lang_option(s)
     s.set_defaults(func=cmd_arabic_dsl)
+
+    arflow_parser = sub.add_parser("arflow", help="Arabic .arflow playbooks: check and run")
+    arflow_sub = arflow_parser.add_subparsers(dest="arflow_cmd", required=True)
+
+    check_parser = arflow_sub.add_parser("check", help="Static check of a playbook (no handlers)")
+    check_parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
+    check_parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
+    check_parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
+    check_parser.add_argument("--session", default="cli", help="Session id passed verbatim")
+    check_parser.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
+    check_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(check_parser)
+    check_parser.set_defaults(func=cmd_arflow)
+
+    run_parser = arflow_sub.add_parser("run", help="Run a playbook over the unified MCP gateway")
+    run_parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
+    run_parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
+    run_parser.add_argument("--dry-run", action="store_true", help="Show the plan only")
+    run_parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
+    run_parser.add_argument("--session", default="cli", help="Session id passed verbatim")
+    run_parser.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
+    run_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
+    _add_lang_option(run_parser)
+    run_parser.set_defaults(func=cmd_arflow)
 
     s = sub.add_parser("serve", help="Run REST API + dashboard")
     s.add_argument("--host", default="127.0.0.1")

@@ -6,9 +6,12 @@
 - **Phase 7 Arabic DSL**: `arabic_dsl.py` parses Arabic (and English alias) commands and pipelines for every existing MCP method family — catalog/discovery, skills, tasks, routing/persona and audit/UI resources — and dispatches each step through `mcp_stateless.handle` with the active policies. No new MCP method, tool spec, resource spec or handler name was introduced.
 - **Dry-run plans**: `mcp-hub arabic-dsl --dry-run --json` returns the translated method, parameters, approval requirement and read-only UI flag before any handler runs; pipelines fail fast on the first denial and report `stopped_at`.
 - **Unified audit**: every planned/executed step is appended to `arabic_dsl_audit` SQLite table with the original Arabic command text, resolved method, parameters, result, status and exit code. Identifiers, actors and reasons are never normalized.
+- **Phase 8 Arabic playbooks**: `arflow.py` compiles `.arflow` files (Arabic comments, variables, optional steps) into the existing 27 DSL commands. `arflow check` reports stable issue codes with `--json`/`--lang ar`; `arflow run` executes only through `arabic_dsl.execute` with fail-fast or optional failures and writes a playbook-level row to `arflow_audit`. Variables are accepted only in free-text query/task arguments, proven with an ASCII sentinel parsed by the real DSL parser.
+- **CLI**: `mcp-hub arflow check|run --file ... [--var NAME=VALUE] [--dry-run] [--tenant ...] [--session ...] [--actor ...] [--json] [--lang ar]`, with the same `0/1/2` exit contract.
 
 ### Changed
 - `docs/arabic_runtime.md` now points to the implemented Path 2 contract in the new `docs/arabic_dsl.md` page (added to mkdocs nav).
+- Added `docs/arflow.md` to mkdocs nav and README feature list.
 
 ## [1.7.0] — 2026-11-25
 
