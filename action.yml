@@ -1,0 +1,142 @@
+name: mcp-hub governance gate
+description: Run a policy-gated Arabic .arflow playbook with mcp-hub as a central governance gate
+author: tibatechapp-ship-it
+
+inputs:
+  playbook-path:
+    description: Path to the .arflow playbook to check, test or run
+    required: true
+  mode:
+    description: Operation to perform - check, test or run
+    required: true
+    default: test
+  incremental:
+    description: Reuse unchanged prior steps (ignored by check; test already defaults to true)
+    required: false
+    default: "true"
+  changed-only:
+    description: Alias for incremental adoption with fail-fast re-run after changes
+    required: false
+    default: "false"
+  lang:
+    description: Diagnostic language - ar or en
+    required: false
+    default: ar
+  tenant:
+    description: Tenant id passed verbatim to the audit record
+    required: false
+    default: local
+  audit-db:
+    description: SQLite audit database path
+    required: false
+    default: mcp-hub-governance.sqlite3
+  version:
+    description: mcp-hub version to install from the PEP 503 index
+    required: false
+    default: 1.8.0
+  index-url:
+    description: PEP 503 simple index used to install mcp-hub
+    required: false
+    default: https://tibatechapp-ship-it.github.io/mcp-hub/simple/
+
+outputs:
+  exit-code:
+    description: Exit code of the arflow command (0 success, 1 not found, 2 bad input/failure)
+    value: ${{ steps.gate.outputs.exit-code }}
+  summary:
+    description: One-line AR/EN summary of the gate result
+    value: ${{ steps.gate.outputs.summary }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        LANG: ${{ inputs.lang }}
+        INCREMENTAL: ${{ inputs.incremental }}
+        CHANGED_ONLY: ${{ inputs.changed-only }}
+        PLAYBOOK_PATH: ${{ inputs.playbook-path }}
+        AUDIT_DB: ${{ inputs.audit-db }}
+      run: |
+        set -euo pipefail
+        case "$MODE" in
+          check|test|run) ;;
+          *) echo "::error::mode must be one of check, test, run"; exit 2 ;;
+        esac
+        case "$LANG" in
+          ar|en) ;;
+          *) echo "::error::lang must be ar or en"; exit 2 ;;
+        esac
+        for flag in INCREMENTAL CHANGED_ONLY; do
+          case "${!flag}" in
+            true|false) ;;
+            *) echo "::error::$flag must be true or false"; exit 2 ;;
+          esac
+        done
+        if [ ! -f "$PLAYBOOK_PATH" ]; then
+          echo "::error::playbook not found: $PLAYBOOK_PATH"
+          exit 1
+        fi
+        audit_dir=$(dirname "$AUDIT_DB")
+        mkdir -p "$audit_dir"
+
+    - name: Install mcp-hub from PEP 503
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        INDEX_URL: ${{ inputs.index-url }}
+      run: |
+        set -euo pipefail
+        python3 -m venv "$RUNNER_TEMP/mcp-hub-venv"
+        "$RUNNER_TEMP/mcp-hub-venv/bin/python" -m pip install \
+          --disable-pip-version-check \
+          --index-url "$INDEX_URL" \
+          "mcp-hub==$VERSION"
+
+    - name: Run governance gate
+      id: gate
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        LANG: ${{ inputs.lang }}
+        INCREMENTAL: ${{ inputs.incremental }}
+        CHANGED_ONLY: ${{ inputs.changed-only }}
+        PLAYBOOK_PATH: ${{ inputs.playbook-path }}
+        TENANT: ${{ inputs.tenant }}
+        AUDIT_DB: ${{ inputs.audit-db }}
+      run: |
+        set -uo pipefail
+        args=(--file "$PLAYBOOK_PATH")
+        if [ "$MODE" = "run" ] && [ "$INCREMENTAL" = "true" ]; then
+          args+=(--incremental)
+        fi
+        if [ "$MODE" = "test" ] && [ "$INCREMENTAL" != "true" ]; then
+          args+=(--no-incremental)
+        fi
+        if [ "$MODE" != "check" ] && [ "$CHANGED_ONLY" = "true" ]; then
+          args+=(--changed-only)
+        fi
+        args+=(--json --lang "$LANG" --tenant "$TENANT")
+        log_file="$RUNNER_TEMP/mcp-hub-gate.log"
+        "$RUNNER_TEMP/mcp-hub-venv/bin/mcp-hub" \
+          --db "$AUDIT_DB" arflow "$MODE" "${args[@]}" > "$log_file" 2>&1
+        code=$?
+        cat "$log_file"
+        summary="mode=$MODE lang=$LANG exit=$code"
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "summary=$summary" >> "$GITHUB_OUTPUT"
+        {
+          echo "### mcp-hub governance gate"
+          echo "- Mode: $MODE"
+          echo "- Language: $LANG"
+          echo "- Exit code: $code"
+          echo "- Playbook: $PLAYBOOK_PATH"
+          echo "### بوابة حوكمة mcp-hub"
+          echo "- الوضع: $MODE"
+          echo "- اللغة: $LANG"
+          echo "- رمز الخروج: $code"
+          echo "- ملف التشغيل: $PLAYBOOK_PATH"
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$code"
