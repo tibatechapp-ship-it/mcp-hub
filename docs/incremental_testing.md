@@ -54,11 +54,12 @@ Example:
 mcp-hub arflow run --file flow.arflow --incremental --json
 mcp-hub arflow test --file flow.arflow --json
 mcp-hub arflow test --file flow.arflow --force-full --json
-mcp-hub arflow run --file flow.arflow --no-incremental --json
+mcp-hub arflow test --file flow.arflow --no-incremental --json
 ```
 
-- `test` is incremental by default; `--no-incremental` falls back to the plain
-  `arflow run` behaviour.
+- `test` is incremental by default; `--no-incremental` is accepted only by
+  `test` and falls back to the plain `arflow run` behaviour. Use
+  `arflow run --incremental` to opt into adoption from `run`.
 - `--changed-only` is an alias for incremental adoption in `run`.
 - `--force-full` ignores stored results and re-runs every step.
 - `--dry-run` stays a plan-only operation and never consults prior results.
@@ -72,8 +73,12 @@ The report includes `fingerprints`, `changed_from`, `adopted_count`,
 
 Every executed or adopted step is appended to `arflow_incremental_audit` with
 the fingerprint, state, status, exit code, full result JSON, original Arabic
-line and the verbatim tenant/session/actor. Only the most recent successful
-`rerun`/`adopted` rows are eligible for adoption.
+line and the verbatim tenant/session/actor. Only the newest row for a step is
+considered, and it can be adopted only when its own state is `rerun`/`adopted`
+with status `ok`; a newer `failed`/`rejected` row forces a re-run even if an
+older successful row has the same fingerprint. Audit tables are append-only:
+there is no built-in retention or vacuum, so manage growth at the SQLite file
+level.
 
 ## Invariants
 

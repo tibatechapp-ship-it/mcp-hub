@@ -477,6 +477,24 @@ def test_cli_test_no_incremental_uses_plain_run(tmp_path, capsys) -> None:
     assert "adopted_count" not in payload
 
 
+def test_cli_run_rejects_no_incremental(tmp_path) -> None:
+    path = _playbook(tmp_path, "اعرض الكتالوج")
+    with pytest.raises(SystemExit) as exc:
+        main(
+            [
+                "--db",
+                str(tmp_path / "cli.sqlite3"),
+                "arflow",
+                "run",
+                "--file",
+                path,
+                "--no-incremental",
+                "--json",
+            ]
+        )
+    assert exc.value.code == EXIT_BAD_INPUT
+
+
 def test_cli_changed_only_alias(tmp_path, capsys) -> None:
     path = _playbook(tmp_path, "اعرض الكتالوج")
     db = str(tmp_path / "cli.sqlite3")

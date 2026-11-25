@@ -47,6 +47,17 @@ failure (fail-fast) and reports `stopped_at`.
 Exit codes stay stable: `0` success, `1` runtime/parse error, `2` bad input or
 policy/task denial (`-10002` / `-10003`).
 
+## ID and digit limits
+
+Identifiers and scope fields are passed verbatim, not normalized. IDs match
+`[A-Za-z0-9._:@-]{1,128}` and `server_id` accepts ASCII digits only.
+Arabic-Indic digits (`٠-٩`, `۰-۹`) in `task_id`, `server_id`, skill names,
+`tenant_id`, `session_id` or `actor` fail with exit `2`. Digit folding applies
+only to free-text query/counter matching; see [`arabic_runtime.md`](arabic_runtime.md).
+
+The audit tables are append-only with no built-in retention or vacuum. Manage
+their growth at the SQLite file level.
+
 ## Command families
 
 | Arabic command | MCP method |
