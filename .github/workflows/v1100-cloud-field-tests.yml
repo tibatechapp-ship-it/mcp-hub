@@ -27,7 +27,18 @@ jobs:
             cat "$FIELD/base.arflow"
             printf '\nاعرض الإحصاءات\nتوقع نجاح\n'
           } > "$FIELD/changed.arflow"
-          wc -l "$FIELD/base.arflow" "$FIELD/changed.arflow"
+          cat > "$FIELD/plain.arflow" <<'PLAIN'
+          # فحص تزايدي بخطوات ناجحة فقط
+          اعرض الكتالوج
+          توقع نجاح
+
+          اعرض بيانات السياسة
+          توقع نجاح
+
+          شغّل الفحوصات الصحية
+          توقع نجاح
+          PLAIN
+          wc -l "$FIELD/base.arflow" "$FIELD/changed.arflow" "$FIELD/plain.arflow"
 
       - name: Gate check via local action.yml
         id: gate_check
@@ -83,9 +94,10 @@ jobs:
           BIN="$RUNNER_TEMP/mcp-hub-venv/bin/mcp-hub"
           DB="$FIELD/incremental.sqlite3"
           "$BIN" --version
-          "$BIN" --db "$DB" arflow test --file "$FIELD/base.arflow" --json --lang ar > "$FIELD/first.json"
-          "$BIN" --db "$DB" arflow test --file "$FIELD/base.arflow" --json --lang ar > "$FIELD/second.json"
-          "$BIN" --db "$DB" arflow test --file "$FIELD/changed.arflow" --json --lang ar > "$FIELD/third.json"
+          "$BIN" --db "$DB" arflow test --file "$FIELD/plain.arflow" --json --lang ar > "$FIELD/first.json"
+          "$BIN" --db "$DB" arflow test --file "$FIELD/plain.arflow" --json --lang ar > "$FIELD/second.json"
+          printf '\nاعرض الإحصاءات\nتوقع نجاح\n' >> "$FIELD/plain.arflow"
+          "$BIN" --db "$DB" arflow test --file "$FIELD/plain.arflow" --json --lang ar > "$FIELD/third.json"
           python3 - "$FIELD/first.json" "$FIELD/second.json" "$FIELD/third.json" <<'PY'
           import json
           import sys
@@ -205,12 +217,14 @@ jobs:
         run: |
           set -uo pipefail
           cd "$FIELD/repo"
+          set +e
           "$VENV/bin/mcp-hub" --db "$FIELD/audit.sqlite3" governance init \
             --tenant 'مستأجر٠١' --playbook .arflow/security.arflow \
             --audit-db .mcp-hub-audit.sqlite3 --session cloud --actor runner \
             --json --lang ar > "$FIELD/bad-id-out.txt" 2> "$FIELD/bad-id-err.txt"
           code=$?
           set -e
+          printf 'bad-id exit=%s stderr=%s\n' "$code" "$(cat "$FIELD/bad-id-err.txt")"
           test "$code" -eq 2
           grep -q 'message_ar' "$FIELD/bad-id-err.txt"
           printf 'Arabic-Indic tenant id rejected: exit=%s with Arabic diagnostic\n' "$code"
@@ -252,6 +266,7 @@ jobs:
       - name: Arabic DSL success, default-deny and ID limits
         run: |
           set -uo pipefail
+          set +e
           "$VENV/bin/mcp-hub" --db "$FIELD/dsl.sqlite3" arabic-dsl \
             --text 'اعرض الكتالوج؛ ابحث عن أداة البحث' --json --lang ar \
             > "$FIELD/dsl-ok.json" 2> "$FIELD/dsl-ok.err"
@@ -265,6 +280,9 @@ jobs:
             > "$FIELD/dsl-id.json" 2> "$FIELD/dsl-id.err"
           badid=$?
           set -e
+          printf 'dsl exits: ok=%s deny=%s bad_id=%s\n' "$ok" "$deny" "$badid"
+          printf 'deny stderr=%s\n' "$(cat "$FIELD/dsl-deny.err")"
+          printf 'bad-id stderr=%s\n' "$(cat "$FIELD/dsl-id.err")"
           test "$ok" -eq 0
           test "$deny" -eq 2
           test "$badid" -eq 2
