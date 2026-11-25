@@ -8,10 +8,14 @@
 - **Unified audit**: every planned/executed step is appended to `arabic_dsl_audit` SQLite table with the original Arabic command text, resolved method, parameters, result, status and exit code. Identifiers, actors and reasons are never normalized.
 - **Phase 8 Arabic playbooks**: `arflow.py` compiles `.arflow` files (Arabic comments, variables, optional steps) into the existing 27 DSL commands. `arflow check` reports stable issue codes with `--json`/`--lang ar`; `arflow run` executes only through `arabic_dsl.execute` with fail-fast or optional failures and writes a playbook-level row to `arflow_audit`. Variables are accepted only in free-text query/task arguments, proven with an ASCII sentinel parsed by the real DSL parser.
 - **CLI**: `mcp-hub arflow check|run --file ... [--var NAME=VALUE] [--dry-run] [--tenant ...] [--session ...] [--actor ...] [--json] [--lang ar]`, with the same `0/1/2` exit contract.
+- **Phase 9 incremental Arabic testing**: `incremental.py` fingerprints compiled steps, policy snapshot, catalog source state and verbatim tenant/session/actor context; unchanged successful steps are adopted from `arflow_incremental_audit`, and the first changed step plus every later step are re-run through the same gateway with fail-fast preserved.
+- **Arabic expectations**: `.arflow` steps can assert `توقع نجاح`, `توقع فشل`, `توقع حالة`, `توقع رمز`, `توقع رفض سياسة` and `توقع رفض مهمة` (with English aliases); denial codes default to `-10002`/`-10003` and Arabic-Indic digits are rejected in numeric codes. Expectations participate in step fingerprints.
+- **CLI**: `mcp-hub arflow run --incremental|--changed-only|--force-full` and `mcp-hub arflow test [--no-incremental]`, all preserving `--json`, `--lang ar|en` and exit codes `0/1/2`. `test` is incremental by default; `--dry-run` remains plan-only.
 
 ### Changed
 - `docs/arabic_runtime.md` now points to the implemented Path 2 contract in the new `docs/arabic_dsl.md` page (added to mkdocs nav).
 - Added `docs/arflow.md` to mkdocs nav and README feature list.
+- Added `docs/incremental_testing.md` to mkdocs nav, README and the Phase 9 incremental audit contract.
 
 ## [1.7.0] — 2026-11-25
 

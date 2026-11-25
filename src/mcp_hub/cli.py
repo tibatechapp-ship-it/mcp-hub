@@ -14,6 +14,7 @@ from . import (
     doctor,
     exporters,
     github_enrich,
+    incremental,
     provenance,
     registry_api,
     saved_searches,
@@ -601,7 +602,24 @@ def cmd_arflow(args):
         if not compiled.ok:
             first = compiled.issues[0].message if compiled.issues else "playbook invalid"
             raise arflow.ArflowError(first)
-        payload = arflow.run(_db(args), compiled, dry_run=args.dry_run)
+        use_incremental = (
+            getattr(args, "arflow_cmd", None) in {"run", "test"}
+            and not getattr(args, "dry_run", False)
+            and (
+                getattr(args, "incremental", False)
+                or getattr(args, "changed_only", False)
+                or getattr(args, "force_full", False)
+            )
+        )
+        if use_incremental:
+            payload = incremental.run_incremental(
+                _db(args),
+                compiled,
+                incremental=True,
+                force_full=bool(getattr(args, "force_full", False)),
+            )
+        else:
+            payload = arflow.run(_db(args), compiled, dry_run=args.dry_run)
     except arflow.ArflowError as exc:
         return _fail_json(args, "arflow", exc, exc.code)
     except arabic_dsl.DslError as exc:
@@ -841,29 +859,51 @@ def build_parser() -> argparse.ArgumentParser:
     _add_lang_option(s)
     s.set_defaults(func=cmd_arabic_dsl)
 
-    arflow_parser = sub.add_parser("arflow", help="Arabic .arflow playbooks: check and run")
+    arflow_parser = sub.add_parser(
+        "arflow", help="Arabic .arflow playbooks: check, run and incremental test"
+    )
     arflow_sub = arflow_parser.add_subparsers(dest="arflow_cmd", required=True)
 
+    def add_arflow_options(parser: argparse.ArgumentParser, *, testing: bool = False) -> None:
+        parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
+        parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
+        parser.add_argument("--dry-run", action="store_true", help="Show the plan only")
+        parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
+        parser.add_argument("--session", default="cli", help="Session id passed verbatim")
+        parser.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
+        parser.add_argument("--json", action="store_true", help="Emit compact JSON")
+        if testing:
+            parser.add_argument(
+                "--incremental",
+                action=argparse.BooleanOptionalAction,
+                default=True,
+                help="Reuse unchanged prior steps (default: true)",
+            )
+        else:
+            parser.add_argument(
+                "--incremental", action="store_true", help="Reuse unchanged prior steps"
+            )
+        parser.add_argument(
+            "--changed-only",
+            action="store_true",
+            help="Alias for incremental adoption with fail-fast re-run after changes",
+        )
+        parser.add_argument(
+            "--force-full", action="store_true", help="Ignore stored results and re-run all steps"
+        )
+        _add_lang_option(parser)
+        parser.set_defaults(func=cmd_arflow)
+
     check_parser = arflow_sub.add_parser("check", help="Static check of a playbook (no handlers)")
-    check_parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
-    check_parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
-    check_parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
-    check_parser.add_argument("--session", default="cli", help="Session id passed verbatim")
-    check_parser.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
-    check_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
-    _add_lang_option(check_parser)
-    check_parser.set_defaults(func=cmd_arflow)
+    add_arflow_options(check_parser)
 
     run_parser = arflow_sub.add_parser("run", help="Run a playbook over the unified MCP gateway")
-    run_parser.add_argument("--file", required=True, help="UTF-8 .arflow playbook")
-    run_parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE")
-    run_parser.add_argument("--dry-run", action="store_true", help="Show the plan only")
-    run_parser.add_argument("--tenant", default="local", help="Tenant id passed verbatim")
-    run_parser.add_argument("--session", default="cli", help="Session id passed verbatim")
-    run_parser.add_argument("--actor", default="local", help="Actor passed verbatim to approvals")
-    run_parser.add_argument("--json", action="store_true", help="Emit compact JSON")
-    _add_lang_option(run_parser)
-    run_parser.set_defaults(func=cmd_arflow)
+    add_arflow_options(run_parser)
+
+    test_parser = arflow_sub.add_parser(
+        "test", help="Incremental Arabic test run with expectations and audit"
+    )
+    add_arflow_options(test_parser, testing=True)
 
     s = sub.add_parser("serve", help="Run REST API + dashboard")
     s.add_argument("--host", default="127.0.0.1")

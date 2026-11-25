@@ -21,13 +21,14 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
 
-from . import __version__, arabic_dsl
+from . import __version__, arabic_dsl, mcp_stateless
 from .arabic_runtime import normalize_for_match, resolve_lang
 from .database import Catalog
 
 __all__ = [
     "AUDIT_TABLE",
     "ArflowError",
+    "Expectation",
     "Issue",
     "Step",
     "Playbook",
@@ -58,6 +59,7 @@ ISSUE_CODES = frozenset(
         "INVALID_VARIABLE_VALUE",
         "SUBSTITUTION_OUTSIDE_QUERY",
         "PLAYBOOK_TOO_LARGE",
+        "INVALID_EXPECTATION",
     }
 )
 
@@ -66,6 +68,26 @@ _COMMENT_PREFIXES = ("#", "//")
 _DEF_KEYWORDS = frozenset({"عرف", "ليكن", "لتكن", "set", "let", "var"})
 _OPTIONAL_WORDS = ("اختياري", "optional")
 _SEPARATORS = (";", "؛", "\n", "\r")
+_EXPECT_PATTERNS = tuple(
+    (
+        kind,
+        re.compile(rf"^{re.escape(phrase)}[\s:：]*([A-Za-z_]+|-?[0-9]+)?\s*$", re.IGNORECASE),
+    )
+    for kind, phrase in (
+        ("success", "توقع نجاح"),
+        ("success", "expect success"),
+        ("failure", "توقع فشل"),
+        ("failure", "expect failure"),
+        ("status", "توقع حالة"),
+        ("status", "expect status"),
+        ("policy_denial", "توقع رفض سياسة"),
+        ("policy_denial", "expect policy denial"),
+        ("task_denial", "توقع رفض مهمة"),
+        ("task_denial", "expect task denial"),
+        ("exit", "توقع رمز"),
+        ("exit", "expect code"),
+    )
+)
 
 
 class ArflowError(ValueError):
@@ -95,8 +117,20 @@ class Issue:
 
 
 @dataclass(frozen=True, slots=True)
+class Expectation:
+    """An Arabic assertion attached to the preceding playbook step."""
+
+    kind: str
+    value: str
+    raw: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"kind": self.kind, "value": self.value, "raw": self.raw}
+
+
+@dataclass(frozen=True, slots=True)
 class Step:
-    """One compiled command and its optional-step marker."""
+    """One compiled command, its optional marker and optional expectation."""
 
     step: int
     line: int
@@ -104,6 +138,7 @@ class Step:
     original: str
     optional: bool
     command: arabic_dsl.Command
+    expectation: Expectation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +166,35 @@ class Compiled:
 
 def _issue(code: str, line: int, message: str, raw: str) -> Issue:
     return Issue(code=code, line=line, message=message, raw=raw)
+
+
+def _parse_expectation(line: str) -> Expectation | None:
+    """Parse an Arabic/English expectation, or return None for other lines."""
+    folded = normalize_for_match(line)
+    first = folded.split(maxsplit=1)[0] if folded else ""
+    if first not in {"توقع", "expect"}:
+        return None
+    for kind, pattern in _EXPECT_PATTERNS:
+        match = pattern.match(line.strip())
+        if match is None:
+            continue
+        value = (match.group(1) or "").strip()
+        if kind in {"success", "failure"} and value:
+            raise ValueError(f"{kind} expectation takes no value")
+        if kind == "status" and not re.fullmatch(r"[A-Za-z_]+", value):
+            raise ValueError("status expectation needs a status name")
+        if kind in {"policy_denial", "task_denial"} and not value:
+            value = str(
+                mcp_stateless.POLICY_DENIED
+                if kind == "policy_denial"
+                else mcp_stateless.TASK_DENIED
+            )
+        if kind in {"policy_denial", "task_denial", "exit"} and not re.fullmatch(
+            r"-?[0-9]+", value
+        ):
+            raise ValueError(f"{kind} expectation needs an integer code")
+        return Expectation(kind=kind, value=value, raw=line)
+    raise ValueError("invalid expectation")
 
 
 def _strip_marker(line: str) -> tuple[bool, str]:
@@ -294,6 +358,20 @@ def build(
         if not command_text:
             continue
 
+        try:
+            expectation = _parse_expectation(command_text)
+        except ValueError as exc:
+            issues.append(_issue("INVALID_EXPECTATION", line_number, str(exc), source))
+            continue
+        if expectation is not None:
+            if not steps:
+                issues.append(
+                    _issue("INVALID_EXPECTATION", line_number, "expectation before a step", source)
+                )
+                continue
+            steps[-1] = replace(steps[-1], expectation=expectation)
+            continue
+
         definition = _definition(command_text)
         if definition is not None:
             var_name, value = definition
@@ -380,6 +458,13 @@ def check(
         "status": "ok" if compiled.ok else "failed",
         "issues": issues,
         "plan": arabic_dsl.plan([step.command for step in compiled.playbook.steps])
+        if compiled.playbook is not None
+        else [],
+        "expectations": [
+            {"step": step.step, **step.expectation.as_dict()}
+            for step in compiled.playbook.steps
+            if step.expectation is not None
+        ]
         if compiled.playbook is not None
         else [],
         "exit_code": EXIT_OK if compiled.ok else EXIT_BAD_INPUT,
